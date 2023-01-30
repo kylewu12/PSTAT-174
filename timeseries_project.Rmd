@@ -1,0 +1,14 @@
+---
+title: "Time Series Modeling Project"
+author: "Kyle Wu"
+date: "2023-01-30"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+

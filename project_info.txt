@@ -1,0 +1,19 @@
+ID                    Category
+MRTSSM44111USN        Retail Sales: New Car Dealers
+CUSR0000SETA01        Consumer Price Index for all Urban Consumers: New Vehicles in U.S. City Average
+AUINSA                Domestic Auto Inventories
+MRTSSM44112USN        Retail Sales: Used Car Dealers
+DAUTOSAAR             Motor Vehicle Retail Sales: Domestic Autos
+CUSR0000SETA02        Consumer Price Index for All Urban Consumers: Used Cars and Trucks in U.S. City Average
+DAUPSA                Domestic Auto Production
+LAUTOSA               Motor Vehicle Retail Sales: Domestic and Foreign Autos
+AISRSA                Auto Inventory/Sales Ratio
+
+
+Candidates:
+
+Consumer Price Index for all Urban Consumers: New Vehicles in U.S.
+Consumer Price Index for All Urban Consumers: Used Cars and Trucks
+Retail Sales: Used Car Dealers
+Domestic Auto Inventories
+Domestic Auto Production
