@@ -31,7 +31,7 @@ data <- data %>%
 ```{r, message = FALSE}
 #Data read in individually 
 cpi_newcar <- readr::read_csv("CUSR0000SETA01.csv")
-auto_production <- readr::read_csv("DAUPSA.csv")
+auto_production <- readr::read_csv("DAUPNSA.csv")
 total_vehicles <- readr::read_csv("TOTALNSA.csv")
 fuel_prices <- readr::read_csv("CUSR0000SETB01.csv")
 bank_rate <- readr::read_csv("MPRIME.csv")
@@ -85,7 +85,7 @@ auto_production <- auto_production %>%
   mutate(Month = yearmonth(DATE)) %>%
   as_tsibble(index = Month) 
 
-auto_production_ts <- autoplot(auto_production, DAUPSA) +
+auto_production_ts <- autoplot(auto_production, DAUPNSA) +
   labs(title = "Domestic Auto Production", y = "Thousands of Units")
 
 auto_production_ts
@@ -127,7 +127,7 @@ Gathering all this data about the American auto market would then allow us to br
 
 ## Analysis of Empirical Properties
 
-In all cases, the data I selected came from the Federal Reserve Economic Data database and all variables selected were recorded on a monthly basis. The variables I have chosen are Total number of vehicles sold, new vehicle consumer price index, domestic auto production, fuel price index, and the bank prime rate. In this study, I will use total number of vehicles sold as the gauge of the american auto market, and the other variables will be used as predictors.
+In all cases, the data I selected came from the Federal Reserve Economic Data database and all variables selected were recorded on a monthly basis and input into a format that was very neat and effective for time series analysis. The variables I have chosen are Total number of vehicles sold, new vehicle consumer price index, domestic auto production, fuel price index, and the bank prime rate. In this study, I will use total number of vehicles sold as the gauge of the american auto market, and the other variables will be used as predictors.
 
 We will first analyze the variables individually before talking about all the factors as they may relate to projecting future car sales.
 
@@ -145,13 +145,36 @@ tvacf <- total_vehicles %>%
 grid.arrange(total_vehicles_ts, tvacf)
 
 ```
-Our data for vehicles sold starts from January 1976, is recorded monthly, and does not have any missing values.The data was collected from the U.S. Bureau of Economic Analysis. From the autocorrelation plot, we see that the data definitely follows a trend, as demonstrated by the decrease in the ACF as lag increases. Additionally, from the scalloped shape of the plot, we can see that the data follows a seasonal trend of peaks and troughs every twelve months. Logically this makes sense, as it is well known that vehicle sales usually increase during the summer and tend to decrease during the winter 
+Our data for vehicles sold starts from January 1976, is recorded monthly, and does not have any missing values.The data was collected from the U.S. Bureau of Economic Analysis, which has formatted the data in a easily usable database. From the autocorrelation plot, we see that the data definitely follows a trend, as demonstrated by the decrease in the ACF as lag increases. Additionally, from the scalloped shape of the plot, we can see that the data follows a seasonal trend of peaks and troughs every twelve months. Logically this makes sense, as it is well known that vehicle sales usually increase during the summer and tend to decrease during the winter. From the data we can determine the number of vehicles sold over the last 5 decades and whether there has been a general trend in vehicle sales.
+
+We can now look at the consumer price index of new vehicles in the United States.
 
 ```{r}
-auto_production %>%
-  gg_lag(DAUPSA, geom = "point") +
-  labs(x = "lag(Total Vehicles, k)")
+cpi_lag <- cpi_newcar %>%
+  gg_lag(CUSR0000SETA01, geom = "point") + 
+  labs(x = "lag(Car CPI, k)")
+
+cpi_newcar_ts
 ```
+The data for the consumer price index measure of new cars begins in January 1953 and is recorded monthly. This dataset has already been seasonally adjusted so that will not be something that I will have to worry about later. It is worth mentioning that CPI should not be regarded as the price of a vehicle, but is a measure of how much more or less an item cost relative to the base year (1982-1984 in this case). In essence, this CPI measures the spending power consumers have over the good. Overall, there does not appear to be any sharp fluctuations in the data but we do have a couple periods of relatively rapid vehicle price inflation, namely from the 70s to the late 1990s and then again after the arrival of COVID-19 in 2020. It is interesting to see that from the late 1990s to 2020, the CPI value of cars did not change drastically.
+
+```{r}
+
+production_season <- auto_production %>% 
+  gg_season(DAUPNSA, polar = TRUE)
+
+auto_production %>% gg_subseries(DAUPNSA)
+
+grid.arrange(auto_production_ts, production_season)
+```
+For Domestic Auto Production, we have monthly recorded data from the U.S. Bureau of Economic Analysis with no missingess present in the data. Overall, we appear to see volatility month-to-month and pretty consistent seasonal patterns with July being a month with consistently low production numbers in relation to other months and March and October having relatively high production numbers. This data alone can answer a couple questions about the United States auto market. First of all, we can answer if the COVID induced supply shortages drastically impacted U.S. vehicle production numbers or if, as suggested by FRED COVID simply highlighted a long-term trend that would have occurred regardless. Using this data will then also allow us to make forecasts on what the future outlook may be for domestic auto production.
+
+```{r}
+fuel_prices_ts
+```
+
+
+
 ```{r}
 total_vehicles %>%
   ACF(TOTALNSA) %>%
