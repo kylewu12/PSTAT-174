@@ -2,13 +2,175 @@
 title: "Time Series Modeling Project"
 author: "Kyle Wu"
 date: "2023-01-30"
+bibliography: bib.bib
 output:
   pdf_document: default
+  fontsize: 14pt
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE, message = FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
 ```
+
+```{r, message = FALSE}
+library(fpp3)
+library(tidyverse)
+library(tsibble)
+library(MASS)
+library(gridExtra)
+```
+
+```{r}
+#All data read in
+data <- readr::read_csv("fredgraph.csv")
+
+data <- data %>%
+  mutate(Month = yearmonth(DATE)) %>%
+  as_tsibble(index = Month) 
+```
+```{r, message = FALSE}
+#Data read in individually 
+cpi_newcar <- readr::read_csv("CUSR0000SETA01.csv")
+auto_production <- readr::read_csv("DAUPSA.csv")
+total_vehicles <- readr::read_csv("TOTALNSA.csv")
+fuel_prices <- readr::read_csv("CUSR0000SETB01.csv")
+bank_rate <- readr::read_csv("MPRIME.csv")
+```
+
 
 ## R Markdown
 
+### New Car CPI
+```{r}
+cpi_newcar <- cpi_newcar %>%
+  mutate(Month = yearmonth(DATE)) %>%
+  as_tsibble(index = Month) 
+
+cpi_newcar_ts <- autoplot(cpi_newcar, CUSR0000SETA01) +
+  labs(title = "CPI of New Cars", y = "Index: 1982-1984 = 100")
+
+cpi_newcar_ts
+```
+
+### Prime Rate Loans
+```{r}
+bank_rate <- bank_rate %>%
+  mutate(Month = yearmonth(DATE)) %>%
+  as_tsibble(index = Month) 
+
+bank_rate_ts <- autoplot(bank_rate, MPRIME) +
+  labs(title = "Bank Prime Loan Rate", y = "%")
+
+bank_rate_ts
+```
+
+### Total Vehicle Sales
+
+```{r}
+total_vehicles <- total_vehicles %>%
+  mutate(Month = yearmonth(DATE)) %>%
+  as_tsibble(index = Month) 
+
+total_vehicles_ts <- autoplot(total_vehicles, TOTALNSA) +
+  labs(title = "Total Vehicle Sales", y = "Thousands of Units")
+
+total_vehicles_ts
+```
+
+
+
+### Domestic Auto Production
+```{r}
+auto_production <- auto_production %>%
+  mutate(Month = yearmonth(DATE)) %>%
+  as_tsibble(index = Month) 
+
+auto_production_ts <- autoplot(auto_production, DAUPSA) +
+  labs(title = "Domestic Auto Production", y = "Thousands of Units")
+
+auto_production_ts
+```
+
+
+### GAS CPI
+```{r}
+fuel_prices <- fuel_prices %>%
+  mutate(Month = yearmonth(DATE)) %>%
+  as_tsibble(index = Month) %>%
+  filter(DATE > "1968-01-01")
+  
+
+fuel_prices_ts <- autoplot(fuel_prices, CUSR0000SETB01) +
+  labs(title = "Gas CPI", y = "Index 1982-1984 = 100")
+
+fuel_prices_ts
+```
+
+
+
+
+
+\newpage
+
+
+## Application of Data Sets
+$$\\$$
+In the United States, one of the main modes of transportation is the automobile. To the average consumer, it has seemed that the new car has been slowly getting out of reach, with the average price of a new vehicle currently sitting around $49,500 [@carprice2023]. Despite the high prices of vehicles for many Americans a car is not only a luxury, but a necessity, and many citizens find themselves shelling out a large portion of their paychecks for their transportation. Even when individuals opt to purchase used cars, they are still often faced with prices that would have seemed exorbitant not that long ago.
+$$\\$$
+Since this is the case, studying the United States car market over time will allow us to gain useful knowledge that will be of significance not only to the average consumer, but also for economists trying to understand what trends the American auto market may be facing going forwards and what factors influence automotive sales. Past research into the American auto market have been vital to our understanding of the forces driving the auto market. For example, it is well known that the chip shortage that occurred as a result of COVID-19 shutdowns, among other reasons led to a chip shortage that has in many ways created problems for the world economy [@jpm2022]. Since cars now heavily rely on computers to work, this resulted in many manufacturers around the world decreasing production projections, which decreased vehicle production, and partially led to the rapid rise in vehicle prices. However, if we look at production figures, we can see that the domestic production of cars had been following a decreasing trend since the 90s, so researchers at Federal Reserve Economic Data (FRED) found that it is hard to say if COVID was fully responsible for the decreased production, or if it would have happened regardless [@FRED2022]. Research by FRED also indicated that despite the increase in population since the mid 1970s, the total number of vehicles sold has remained relatively flat aver the past few decades [@FRED2021].
+$$\\$$
+Looking at the data offered by the Federal Reserve could allow us to answer even more questions regarding the American auto market. For example, we could try to understand if it is likely that american automakers would have decreased their production numbers even without the disruptions brought about by COVID or if COVID led to new trends. If we take into account other economic factors, such as interest rate or gas prices, we can then try to measure what economic factors may most affect the sale of motor vehicles. Using the data we obtained and after determing factors that determine automotive sales, we can then create a forecast to determine how each factor relating to the automotive industry will change in the future. For example, we can try to answer the question of whether it is likely new vehicles will continue facing inflation or if it might become stable in the near future. Besides looking at the various factors individually, we can also look at the auto market holistically, asking what the future may be in terms of vehicle purchases in the United States and is it likely that vehicle purchases return to pre-COVID levels. For the average consumer, the questions that will be answered will allow them to perhaps better plan for the expenditure that comes with the purchase of a new car.
+$$\\$$
+Furthermore, studying time series data of vehicles can allow us to better understand how or if certain policy changes may change vehicle prices or purchasing behavior. For example, we could potentially find time periods with varying federal funds rates, which influence bank prime loan rates to see if this changed the overall behavior of consumers. 
+$$\\$$
+Gathering all this data about the American auto market would then allow us to broadly gain an understanding not only of factors affecting vehicle sales, but also of the health of the American economy due to the fact that vehicles are often the second most expensive possessions of individuals, second only to homes. Increased purchasing of vehicles would indicate that the American has been healthy and following a positive trend, whereas decreased vehicle purchases may indicate that the economy had been following a general downwards trajectory. 
+
+## Analysis of Empirical Properties
+
+In all cases, the data I selected came from the Federal Reserve Economic Data database and all variables selected were recorded on a monthly basis. The variables I have chosen are Total number of vehicles sold, new vehicle consumer price index, domestic auto production, fuel price index, and the bank prime rate. In this study, I will use total number of vehicles sold as the gauge of the american auto market, and the other variables will be used as predictors.
+
+We will first analyze the variables individually before talking about all the factors as they may relate to projecting future car sales.
+
+The first variable we will look at is total vehicle sales.
+
+```{r}
+tvsubseries <- total_vehicles %>%
+  gg_subseries(TOTALNSA) + 
+  labs(y = "Thousands of Vehicles Sold", title = "Total Vehicle Sales")
+
+tvacf <- total_vehicles %>%
+  ACF(TOTALNSA) %>%
+  autoplot() + labs(title = "Total Vehicles Sold")
+
+grid.arrange(total_vehicles_ts, tvacf)
+
+```
+Our data for vehicles sold starts from January 1976, is recorded monthly, and does not have any missing values.The data was collected from the U.S. Bureau of Economic Analysis. From the autocorrelation plot, we see that the data definitely follows a trend, as demonstrated by the decrease in the ACF as lag increases. Additionally, from the scalloped shape of the plot, we can see that the data follows a seasonal trend of peaks and troughs every twelve months. Logically this makes sense, as it is well known that vehicle sales usually increase during the summer and tend to decrease during the winter 
+
+```{r}
+auto_production %>%
+  gg_lag(DAUPSA, geom = "point") +
+  labs(x = "lag(Total Vehicles, k)")
+```
+```{r}
+total_vehicles %>%
+  ACF(TOTALNSA) %>%
+  autoplot() + labs(title = "Total Vehicles Sold")
+```
+
+```{r}
+total_vehicles %>% feasts::gg_season(TOTALNSA, labels = "both", polar = TRUE) + 
+  labs(y = "Thousands of Vehicles", title = "this thing better work")
+
+total_vehicles %>% feasts::gg_subseries(TOTALNSA) + 
+  labs(y = "Thousands of Vehicles Sold", title = "This thing better also work")
+```
+
+```{r}
+decomp_tv <- total_vehicles %>%
+  model(stl = STL(TOTALNSA))
+
+components(decomp_tv) %>% autoplot()
+```
+
+## References

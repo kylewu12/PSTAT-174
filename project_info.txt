@@ -1,19 +1,41 @@
 ID                    Category
-MRTSSM44111USN        Retail Sales: New Car Dealers
-CUSR0000SETA01        Consumer Price Index for all Urban Consumers: New Vehicles in U.S. City Average
-AUINSA                Domestic Auto Inventories
-MRTSSM44112USN        Retail Sales: Used Car Dealers
-DAUTOSAAR             Motor Vehicle Retail Sales: Domestic Autos
-CUSR0000SETA02        Consumer Price Index for All Urban Consumers: Used Cars and Trucks in U.S. City Average
-DAUPSA                Domestic Auto Production
-LAUTOSA               Motor Vehicle Retail Sales: Domestic and Foreign Autos
-AISRSA                Auto Inventory/Sales Ratio
+MRTSSM44111USN        Retail Sales: New Car Dealers (Millions of Dollars. monthly, not seasonally adjusted)
+CUSR0000SETA01        Consumer Price Index for all Urban Consumers: New Vehicles in U.S. City Average (Index 1982-1984 = 100, monthly, seasonally adjusted)
+AUINSA                Domestic Auto Inventories (Thousands of Units, monthly, seasonally adjusted)
+MRTSSM44112USN        Retail Sales: Used Car Dealers (Millions of Dollars, monthly, not seasonally adjusted)
+DAUTOSAAR             Motor Vehicle Retail Sales: Domestic Autos (Millions of Units, monthly, seasonally adjusted annual rate)
+CUSR0000SETA02        Consumer Price Index for All Urban Consumers: Used Cars and Trucks in U.S. City Average (Index 1982-1984 = 100, monthly, Seasonally Adjusted)
+DAUPSA                Domestic Auto Production (Thousands of Units, monthly, seasonally adjusted)
+LAUTOSA               Motor Vehicle Retail Sales: Domestic and Foreign Autos (Millions of Units, Monthly, Seasonally Adjusted Annual Rate)
+AISRSA                Auto Inventory/Sales Ratio (Ratio, Monthly, Seasonally Adjusted)
+
+
 
 
 Candidates:
 
-Consumer Price Index for all Urban Consumers: New Vehicles in U.S.
-Consumer Price Index for All Urban Consumers: Used Cars and Trucks
-Retail Sales: Used Car Dealers
-Domestic Auto Inventories
-Domestic Auto Production
+Consumer Price Index for all Urban Consumers: New Vehicles in U.S. (CUSR0000SETA01)
+Consumer Price Index for All Urban Consumers: Used Cars and Trucks (CUSR0000SETA02)
+Motor Vehicle Retail Sales: Domestic and Foreign Autos (LAUTOSA)
+Retail Sales: Used Car Dealers (MRTSSM44112USN)
+Retail Sales: New Car Dealers (MRTSSM44111USN)
+Domestic Auto Inventories (AUINSA)
+Domestic Auto Production (DAUPSA)
+Employment of auto workers
+
+
+
+Candidates Second Edition: 
+Consumer Price Index for all Urban Consumers: New Vehicles in U.S. (xc)
+Domestic Auto Production (DAUPSA)
+TOTALNSA (thousands of units, monthly, not seasonally adjusted) <- maybe what everything is regressed on
+Fuel prices (CUURS0000SETB01)(Index 1982-1984 = 100, monthly, not seasonally adjusted
+Bank Prime Rate (Percent, monthly, not seasonally adjusted)
+
+
+5 V's
+Veracity - quality and accuracy of data (does it have missing pieces? Is it inaccurate?, refers to level of trust there is in the collected data)
+Volume - amount of data that exists
+Variety - diversity of data types (is data from a formatted repository where data is more addressable for effective data processing and analysis.
+Value - refers to value data can provide what types of insights can we generate from this data?
+Velocity - how quickly data is generated and how quickly the data moves.
