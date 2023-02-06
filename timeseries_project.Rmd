@@ -20,7 +20,7 @@ library(MASS)
 library(gridExtra)
 ```
 
-```{r}
+```{r, show_col_types = FALSE}
 #All data read in
 data <- readr::read_csv("fredgraph.csv")
 
