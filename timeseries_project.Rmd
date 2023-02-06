@@ -37,7 +37,6 @@ fuel_prices <- readr::read_csv("CUSR0000SETB01.csv")
 bank_rate <- readr::read_csv("MPRIME.csv")
 ```
 
-
 ## R Markdown
 
 ### New Car CPI
@@ -48,8 +47,6 @@ cpi_newcar <- cpi_newcar %>%
 
 cpi_newcar_ts <- autoplot(cpi_newcar, CUSR0000SETA01) +
   labs(title = "CPI of New Cars", y = "Index: 1982-1984 = 100")
-
-cpi_newcar_ts
 ```
 
 ### Prime Rate Loans
@@ -60,8 +57,6 @@ bank_rate <- bank_rate %>%
 
 bank_rate_ts <- autoplot(bank_rate, MPRIME) +
   labs(title = "Bank Prime Loan Rate", y = "%")
-
-bank_rate_ts
 ```
 
 ### Total Vehicle Sales
@@ -73,8 +68,6 @@ total_vehicles <- total_vehicles %>%
 
 total_vehicles_ts <- autoplot(total_vehicles, TOTALNSA) +
   labs(title = "Total Vehicle Sales", y = "Thousands of Units")
-
-total_vehicles_ts
 ```
 
 
@@ -87,8 +80,6 @@ auto_production <- auto_production %>%
 
 auto_production_ts <- autoplot(auto_production, DAUPNSA) +
   labs(title = "Domestic Auto Production", y = "Thousands of Units")
-
-auto_production_ts
 ```
 
 
@@ -102,8 +93,6 @@ fuel_prices <- fuel_prices %>%
 
 fuel_prices_ts <- autoplot(fuel_prices, CUSR0000SETB01) +
   labs(title = "Gas CPI", y = "Index 1982-1984 = 100")
-
-fuel_prices_ts
 ```
 
 
@@ -111,9 +100,7 @@ fuel_prices_ts
 
 
 \newpage
-
-
-## Application of Data Sets
+## Data Application
 $$\\$$
 In the United States, one of the main modes of transportation is the automobile. To the average consumer, it has seemed that the new car has been slowly getting out of reach, with the average price of a new vehicle currently sitting around $49,500 [@carprice2023]. Despite the high prices of vehicles for many Americans a car is not only a luxury, but a necessity, and many citizens find themselves shelling out a large portion of their paychecks for their transportation. Even when individuals opt to purchase used cars, they are still often faced with prices that would have seemed exorbitant not that long ago.
 $$\\$$
@@ -154,26 +141,26 @@ cpi_lag <- cpi_newcar %>%
   gg_lag(CUSR0000SETA01, geom = "point") + 
   labs(x = "lag(Car CPI, k)")
 
-cpi_newcar_ts
+grid.arrange(cpi_newcar_ts, fuel_prices_ts)
 ```
 The data for the consumer price index measure of new cars begins in January 1953 and is recorded monthly. This dataset has already been seasonally adjusted so that will not be something that I will have to worry about later. It is worth mentioning that CPI should not be regarded as the price of a vehicle, but is a measure of how much more or less an item cost relative to the base year (1982-1984 in this case). In essence, this CPI measures the spending power consumers have over the good. Overall, there does not appear to be any sharp fluctuations in the data but we do have a couple periods of relatively rapid vehicle price inflation, namely from the 70s to the late 1990s and then again after the arrival of COVID-19 in 2020. It is interesting to see that from the late 1990s to 2020, the CPI value of cars did not change drastically.
+
+Records for the price index of gasoline start from February 1968 and are recorded monthly by the U.S. Bureau of Labor Statistics with no missingness present. From the data, we see that there has been a general increase in the price of gasoline from 1968 until the early 2000s before prices seem to level off, but with high volatility. We also see that following COVID, there was a large spike in gasoline prices, which has since gradually come down. This data will allow us to understand what trends are present in terms of gasoline prices and whether gasoline prices have an effect on the total number of vehicles sold. In other words, do high gasoline prices lead to less consumers buying vehicles?
 
 ```{r}
 
 production_season <- auto_production %>% 
   gg_season(DAUPNSA, polar = TRUE)
 
-auto_production %>% gg_subseries(DAUPNSA)
-
 grid.arrange(auto_production_ts, production_season)
 ```
 For Domestic Auto Production, we have monthly recorded data from the U.S. Bureau of Economic Analysis with no missingess present in the data. Overall, we appear to see volatility month-to-month and pretty consistent seasonal patterns with July being a month with consistently low production numbers in relation to other months and March and October having relatively high production numbers. This data alone can answer a couple questions about the United States auto market. First of all, we can answer if the COVID induced supply shortages drastically impacted U.S. vehicle production numbers or if, as suggested by FRED COVID simply highlighted a long-term trend that would have occurred regardless. Using this data will then also allow us to make forecasts on what the future outlook may be for domestic auto production.
 
+
 ```{r}
-fuel_prices_ts
+bank_rate_ts
 ```
-
-
+The Bank Prime loan rate is set in relation to the federal funds rate set by the federal reserve and we have data going back to January 1949. The rate is often set based on other determinants of the market so we may not be able to generate too many insights from it individually. However, if we use the bank prime rate in addition to the other factors we discussed earlier, we may be able to create a regression model that will allow us to understand what economic factors influence the car purchasing decisions of Americans. Additionally, studying all the data together will allow us to understand if COVID-19 disruptions altered the purchasing decisions of Americans or if there were vehicle market trends that would have likely occurred regardless of the pandemic.
 
 ```{r}
 total_vehicles %>%
