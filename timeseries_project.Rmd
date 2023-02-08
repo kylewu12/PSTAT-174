@@ -14,6 +14,9 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```{r, message = FALSE}
 library(fpp3)
+library(feasts)
+library(fable)
+library(seasonal)
 library(tidyverse)
 library(tsibble)
 library(MASS)
@@ -26,14 +29,17 @@ data <- readr::read_csv("fredgraph.csv")
 
 data <- data %>%
   mutate(Month = yearmonth(DATE)) %>%
-  as_tsibble(index = Month) 
+  as_tsibble(index = Month) %>%
+  filter(DATE > "1992-12-01")
 ```
 ```{r, message = FALSE}
 #Data read in individually 
 cpi_newcar <- readr::read_csv("CUSR0000SETA01.csv")
+c_newcar <- readr::read_csv("CUUR0000SETA01.csv") %>% filter(DATE > "1960-01-01")
 auto_production <- readr::read_csv("DAUPNSA.csv")
 total_vehicles <- readr::read_csv("TOTALNSA.csv")
 fuel_prices <- readr::read_csv("CUSR0000SETB01.csv")
+f_price <- readr::read_csv("CUUR0000SETB01.csv") %>% filter(!is.na("CUUR0000SETB01"))
 bank_rate <- readr::read_csv("MPRIME.csv")
 ```
 
@@ -45,9 +51,16 @@ cpi_newcar <- cpi_newcar %>%
   mutate(Month = yearmonth(DATE)) %>%
   as_tsibble(index = Month) 
 
+c_newcar$DATE = as.Date(c_newcar$DATE)
+c_newcar$CUUR0000SETA01 <- ts(c_newcar$CUUR0000SETA01, start = c(1960,01), frequency = 12)
+plot(c_newcar$CUUR0000SETA01)
+
 cpi_newcar_ts <- autoplot(cpi_newcar, CUSR0000SETA01) +
   labs(title = "CPI of New Cars", y = "Index: 1982-1984 = 100")
+
+cpi_newcar_ts
 ```
+
 
 ### Prime Rate Loans
 ```{r}
@@ -131,6 +144,12 @@ tvacf <- total_vehicles %>%
 
 grid.arrange(total_vehicles_ts, tvacf)
 
+lambda <- total_vehicles %>%
+  features(TOTALNSA, features = guerrero) %>%
+  pull(lambda_guerrero)
+
+total_vehicles %>%
+  autoplot(box_cox(TOTALNSA, lambda)) 
 ```
 Our data for vehicles sold starts from January 1976, is recorded monthly, and does not have any missing values.The data was collected from the U.S. Bureau of Economic Analysis, which has formatted the data in a easily usable database. From the autocorrelation plot, we see that the data definitely follows a trend, as demonstrated by the decrease in the ACF as lag increases. Additionally, from the scalloped shape of the plot, we can see that the data follows a seasonal trend of peaks and troughs every twelve months. Logically this makes sense, as it is well known that vehicle sales usually increase during the summer and tend to decrease during the winter. From the data we can determine the number of vehicles sold over the last 5 decades and whether there has been a general trend in vehicle sales.
 
@@ -153,6 +172,10 @@ production_season <- auto_production %>%
   gg_season(DAUPNSA, polar = TRUE)
 
 grid.arrange(auto_production_ts, production_season)
+
+auto_production %>%
+  gg_subseries(DAUPNSA) + 
+  labs( y = "Thousands of Vehicles", title = "Domestic Auto Production")
 ```
 For Domestic Auto Production, we have monthly recorded data from the U.S. Bureau of Economic Analysis with no missingess present in the data. Overall, we appear to see volatility month-to-month and pretty consistent seasonal patterns with July being a month with consistently low production numbers in relation to other months and March and October having relatively high production numbers. This data alone can answer a couple questions about the United States auto market. First of all, we can answer if the COVID induced supply shortages drastically impacted U.S. vehicle production numbers or if, as suggested by FRED COVID simply highlighted a long-term trend that would have occurred regardless. Using this data will then also allow us to make forecasts on what the future outlook may be for domestic auto production.
 
@@ -161,6 +184,25 @@ For Domestic Auto Production, we have monthly recorded data from the U.S. Bureau
 bank_rate_ts
 ```
 The Bank Prime loan rate is set in relation to the federal funds rate set by the federal reserve and we have data going back to January 1949. The rate is often set based on other determinants of the market so we may not be able to generate too many insights from it individually. However, if we use the bank prime rate in addition to the other factors we discussed earlier, we may be able to create a regression model that will allow us to understand what economic factors influence the car purchasing decisions of Americans. Additionally, studying all the data together will allow us to understand if COVID-19 disruptions altered the purchasing decisions of Americans or if there were vehicle market trends that would have likely occurred regardless of the pandemic.
+
+
+## Models for Data Fitting
+The first step to fitting our model is to see if any of our time series need to be transformed or adjusted, which often allows us to analyze simpler time series. Adjusting the data will allow us to make patterns more conssitent across our data, which will allow us to better model the data, and will lead to better forecasts. For the metrics I used, the only ones that may need transformations due to variations in seasonality are those for `daupnsa` and `totalnsa`. Since these two series show variations that change with the level of the series, we can use Box-Cox transformations to stabilize the variance. Box-Cox transformations depend on a parameter $\lambda$ and can be defined as follows 
+
+$$
+y(\lambda) = 
+\begin{cases}
+  \displaystyle\frac{y^\lambda - 1}{\lambda},&\lambda\neq 0\\
+  \log(y), &\lambda = 0
+\end{cases}.
+$$
+
+The next step to fitting our model is to decompose our data into the time series' separate components. Depending on the type of data we have, there are two possible ways that we can decompose the data. The first possible case of data is a time series with a trend but no seasonal variations, which follows the form $X_t = \alpha + \beta t + \epsilon_t$. Since our CPI data for gasoline prices and new car prices are both seasonally adjusted, this is the type of decomposition they will undergo. 
+
+The second possible case of data is a time series that contains both a trend, and seasonal variation. In this case, there are two possible cases of decomposition we can take. If we assume additive decomposition, then we can use $y_t = S_t + T_t + R_t$, where 
+
+
+
 
 ```{r}
 total_vehicles %>%
