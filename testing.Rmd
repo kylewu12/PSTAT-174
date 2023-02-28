@@ -1,0 +1,227 @@
+---
+title: "tester"
+author: "Kyle Wu"
+date: "2023-02-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Detrended Total Vehicle Sales
+
+```{r}
+total_log <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12)
+
+```
+
+```{r}
+total_log <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12)
+
+diff_total_log <- diff(total_log)
+
+decomp <- seas(total_log, x11 = "")
+
+detrended <- total_log - decomp$data[, "trend"]
+
+plot(total_log)
+plot(detrended)
+plot(diff_total_log)
+adf.test(total_log)
+
+kpss.test(diff_total_log, null = "Trend")
+
+kpss.test(detrended, null = "Trend")
+adf.test(diff_total_log)
+attempt <- dynlm(detrended ~ L(detrended, 1) + L(detrended, 12))
+
+model0 <- dynlm(diff_total_log ~ 1)
+model11 <- dynlm(diff_total_log ~ season(diff_total_log), data = total_log)
+anova(model0, model11)
+
+plot(diff_total_log) +
+
+lines(fitted(model0), col = 2) +
+
+lines(fitted(model11), col = 4)
+```
+
+
+
+### Total Vehicles and Bank Prime Rate Loan:
+```{r}
+total
+
+model2 <- dynardl()
+```
+
+```{r}
+rate <- ts(bank_rate$MPRIME, start = c(1949, 1), frequency = 12)
+kpss.test(rate, null = "Trend")
+
+rate <- diff(rate)
+kpss.test(rate, null = "Trend")
+adf.test(rate)
+
+total_rate_analysis <- ts.intersect(diff_total_log, rate)
+
+plot(rate)
+
+autoplot(total_rate_analysis)
+
+model1 <- dynlm(diff_total_log ~ L(diff_total_log, 1:14) + L(rate, 0:15) + season(diff_total_log), data = total_rate_analysis)
+
+summary(model1)
+
+auto_ardl(diff_total_log ~ rate, data = total_rate_analysis, max_order = 20)
+
+checkresiduals(model1)
+```
+
+```{r}
+try_dat <- combined %>% filter(DATE > "1976-01-01") %>%
+  mutate(diff_total_log = difference(difference(log(TOTALNSA, 12))),
+         diff_rate = difference(MPRIME))
+
+try_fit <- auto.arima(try_dat$diff_total_log, xreg = try_dat$diff_rate, stationary = TRUE)
+
+checkresiduals(try_fit)
+```
+
+```{r}
+stuff <- combined %>% filter(DATE >= "1976-01-01") %>%
+  model(
+    lag0 = ARIMA(TOTALNSA ~ pdq(d = 0) + MPRIME),
+    lag1 = ARIMA(TOTALNSA ~ pdq(d = 0) + MPRIME + lag(MPRIME)),
+    lag2 = ARIMA(TOTALNSA ~ pdq(d = 0) + MPRIME + lag(MPROME) + lag(MPRIME, 2))
+  )
+
+glance(stuff)
+```
+
+
+### Total Vehicles and New Car CPI:
+```{r}
+car_cpi <- ts(log(cpi_newcar$CUSR0000SETA01), start = c(1953, 1), frequency = 12)
+kpss.test(car_cpi, null = "Trend")
+
+car_cpi <- diff(car_cpi)
+kpss.test(car_cpi, null = "Trend")
+adf.test(car_cpi)
+
+total_rate_analysis <- ts.intersect(diff_total_log, car_cpi)
+
+plot(rate)
+
+autoplot(total_rate_analysis)
+
+model1 <- dynlm(diff_total_log ~ L(diff_total_log, 1:3) + L(rate, 0:5), data = total_rate_analysis)
+
+summary(model1)
+```
+
+### Total Vehicles and Gas CPI:
+```{r}
+gas_cpi <- ts(log(fuel_prices$CUSR0000SETB01), start = c(1968, 2), frequency = 12) 
+
+
+kpss.test(gas_cpi, null = "Trend")
+
+gas_cpi <- diff(gas_cpi, 1)
+kpss.test(gas_cpi, null = "Trend")
+adf.test(gas_cpi)
+
+total_gas_analysis <- ts.intersect(diff_total_log, gas_cpi)
+
+autoplot(total_gas_analysis)
+
+model6 <- dynlm(diff_total_log ~ L(diff_total_log, c(1:12)) + L(gas_cpi, 0:12) + season(diff_total_log), data = total_gas_analysis)
+
+summary(model6)
+
+checkresiduals(model6)
+
+auto_ardl(diff_total_log ~ gas_cpi, data = total_gas_analysis, max_order = 24)
+```
+
+```{r}
+gas_car_dat <- combined %>% filter(DATE >= "1976-01-01") %>%
+  mutate(diff_total_log = difference(log(TOTALNSA),12) %>% difference(),
+         diff_gas_cpi = difference(CUSR0000SETB01))
+
+fit <- gas_car_dat %>%
+  model(
+    lag0 = ARIMA(diff_total_log ~ pdq(d = 0) + diff_gas_cpi),
+    lag1 = ARIMA(diff_total_log ~ pdq(d = 0) + diff_gas_cpi + lag(diff_gas_cpi)),
+    lag2 = ARIMA(diff_total_log ~ pdq(d = 0) + diff_gas_cpi + lag(diff_gas_cpi) + lag(diff_gas_cpi, 2)),
+    lag3 = ARIMA(diff_total_log ~ pdq(d = 0) + diff_gas_cpi + lag(diff_gas_cpi) + lag(diff_gas_cpi, 2) + lag(diff_gas_cpi, 3)))
+
+glance(fit)
+
+fit_best <- gas_car_dat %>%
+  model(ARIMA(diff_total_log ~ pdq(d = 0) + diff_gas_cpi + lag(diff_gas_cpi) + lag(diff_gas_cpi, 2) + lag(diff_gas_cpi, 3)))
+
+fit_best %>% gg_tsresiduals()
+report(fit_best)
+augment(fuel_fit) %>% filter(.model == 'search') %>%
+  features(.innov, ljung_box, lag = 10, dof = 3)
+
+augment(fit_best) %>% features(.innov, ljung_box, lag = 10, dof = 3)
+```
+### Total Vehicle and Unemployment Rate:
+```{r}
+unemp <- ts(unemployment$UNRATE, start = c(1948, 1), frequency = 12)
+
+unemp <- diff(unemp)
+
+kpss.test(unemp, null = "Trend")
+adf.test(unemp)
+
+autoplot(unemp)
+
+total_unemp_analysis <- ts.intersect(diff_total_log, unemp)
+
+autoplot(total_unemp_analysis)
+
+model8 <- dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
+
+summary(model8)
+checkresiduals(model8)
+```
+
+
+### Total Vehicles and Domestic Auto Production:
+```{r}
+
+auto_prod <- ts(log(auto_production$DAUPNSA), start = c(1993, 1), frequency = 12)
+
+kpss.test(auto_prod, null = "Trend")
+
+auto_prod <- diff(auto_prod, 1)
+kpss.test(auto_prod, null = "Trend")
+adf.test(auto_prod)
+
+total_prod_analysis <- ts.intersect(diff_total_log, auto_prod)
+
+model51 <- dynlm(diff_total_log ~ L(diff_total_log, 1:10) + L(auto_prod, 0:10) + season(total_log), data = total_prod_analysis)
+
+summary(model51)
+
+Anova(model5, model51)
+
+plot(model51)
+autoplot(total_prod_analysis)
+
+checkresiduals(model51)
+
+
+auto_ardl(diff_total_log ~ auto_prod, data = total_prod_analysis, max_order = 24)
+
+order <- 1:24
+sapply
+BICs <- base::sapply(order, function(x)
+  BIC(dynlm(diff_total_log ~ L(diff_total_log, 1:x) + L(auto_prod, 1:x))))
+
+```
+

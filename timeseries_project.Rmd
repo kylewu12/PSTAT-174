@@ -31,6 +31,11 @@ library(urca)
 library(gt)
 library(gtExtras)
 library(kableExtra)
+library(AER)
+library(quantmod)
+library(dynlm)
+library(stargazer)
+library(scales)
 ```
 
 ```{r, show_col_types = FALSE}
@@ -53,22 +58,20 @@ total_vehicles <- readr::read_csv("TOTALNSA.csv")
 fuel_prices <- readr::read_csv("CUSR0000SETB01.csv")
 f_price <- readr::read_csv("CUUR0000SETB01.csv") %>% filter(!is.na("CUUR0000SETB01"))
 bank_rate <- readr::read_csv("MPRIME.csv")
+unemployment <- readr::read_csv("UNRATE.csv")
 ```
 
 ## R Markdown
 
-### New Car CPI
+### Unemployment Rate
 
 ```{r}
-cpi_newcar <- cpi_newcar %>%
+unemployment <- unemployment %>%
   dplyr::mutate(Month = yearmonth(DATE)) %>%
   as_tsibble(index = Month) 
 
-c_newcar$DATE = as.Date(c_newcar$DATE)
-c_newcar$CUUR0000SETA01 <- ts(c_newcar$CUUR0000SETA01, start = c(1960,01), frequency = 12)
-
-cpi_newcar_ts <- autoplot(cpi_newcar, CUSR0000SETA01) +
-  labs(title = "CPI of New Cars", y = "Index: 1982-1984 = 100")
+unemp_ts <- autoplot(unemployment, UNRATE) +
+  labs(title = "Unemployment Rate", y = "Unemployment Rate")
 ```
 
 ### Prime Rate Loans
@@ -118,10 +121,10 @@ fuel_prices_ts <- autoplot(fuel_prices, CUSR0000SETB01) +
 ```
 
 ```{r}
-combined <- reduce(list(bank_rate, auto_production, total_vehicles, cpi_newcar, fuel_prices), left_join, by = "DATE") 
+combined <- reduce(list(bank_rate, auto_production, total_vehicles, unemployment, fuel_prices), left_join, by = "DATE") 
 
 combined <- as_tsibble(combined) %>%
-  dplyr::select(DATE, MPRIME, DAUPNSA, TOTALNSA, CUSR0000SETA01, CUSR0000SETB01, Month)
+  dplyr::select(DATE, MPRIME, DAUPNSA, TOTALNSA, UNRATE, CUSR0000SETB01, Month)
 ```
 
 \newpage
@@ -136,8 +139,9 @@ high prices of vehicles for many Americans a car is not only a luxury,
 but a necessity, and many citizens find themselves shelling out a large
 portion of their paychecks for their transportation. Even when
 individuals opt to purchase used cars, they are still often faced with
-prices that would have seemed exorbitant not that long ago. $$\\$$ Since
-this is the case, studying the United States car market over time will
+prices that would have seemed exorbitant not that long ago. $$\\$$ 
+
+Since this is the case, studying the United States car market over time will
 allow us to gain useful knowledge that will be of significance not only
 to the average consumer, but also for economists trying to understand
 what trends the American auto market may be facing going forwards and
@@ -157,7 +161,10 @@ COVID was fully responsible for the decreased production, or if it would
 have happened regardless [@FRED2022]. Research by FRED also indicated
 that despite the increase in population since the mid 1970s, the total
 number of vehicles sold has remained relatively flat aver the past few
-decades [@FRED2021]. $$\\$$ Looking at the data offered by the Federal
+decades [@FRED2021]. 
+$$\\$$ 
+
+Looking at the data offered by the Federal
 Reserve could allow us to answer even more questions regarding the
 American auto market. For example, we could try to understand if it is
 likely that american automakers would have decreased their production
@@ -176,12 +183,17 @@ terms of vehicle purchases in the United States and is it likely that
 vehicle purchases return to pre-COVID levels. For the average consumer,
 the questions that will be answered will allow them to perhaps better
 plan for the expenditure that comes with the purchase of a new car.
-$$\\$$ Furthermore, studying time series data of vehicles can allow us
+$$\\$$ 
+
+Furthermore, studying time series data of vehicles can allow us
 to better understand how or if certain policy changes may change vehicle
 prices or purchasing behavior. For example, we could potentially find
 time periods with varying federal funds rates, which influence bank
 prime loan rates to see if this changed the overall behavior of
-consumers. $$\\$$ Gathering all this data about the American auto market
+consumers. 
+$$\\$$ 
+
+Gathering all this data about the American auto market
 would then allow us to broadly gain an understanding not only of factors
 affecting vehicle sales, but also of the health of the American economy
 due to the fact that vehicles are often the second most expensive
@@ -202,8 +214,24 @@ production, fuel price index, and the bank prime rate. In this study, I
 will use total number of vehicles sold as the gauge of the american auto
 market, and the other variables will be used as predictors.
 
-We will first analyze the variables individually before talking about
-all the factors as they may relate to projecting future car sales.
+Since we will be creating time series regression models, we first want
+to get an overview of the data to see how each variable relates to the
+other, which we can do through a correlation plot.
+
+```{r, message=FALSE, warning=FALSE}
+GGally::ggpairs(combined[,2:6])
+```
+
+From the correlation plot, we can see that all the variables have some
+form of statistical significance with the exception of the correlation
+between the gas price index and the bank prime rate loans. This would
+make sense because there really shouldn't be a reason why there should
+be a significant correlation between the variables especially
+considering that bank prime rate loans are assocaited with larger
+purchases such as for cars or houses.
+
+We will now analyze the variables individually before talking about all
+the factors as they may relate to projecting future car sales.
 
 The first variable we will look at is total vehicle sales.
 
@@ -240,25 +268,10 @@ We can now look at the consumer price index of new vehicles in the
 United States.
 
 ```{r}
-cpi_lag <- cpi_newcar %>%
-  gg_lag(CUSR0000SETA01, geom = "point") + 
-  labs(x = "lag(Car CPI, k)")
 
-grid.arrange(cpi_newcar_ts, fuel_prices_ts)
+fuel_prices_ts
+
 ```
-
-The data for the consumer price index measure of new cars begins in
-January 1953 and is recorded monthly. This dataset has already been
-seasonally adjusted so that will not be something that I will have to
-worry about later. It is worth mentioning that CPI should not be
-regarded as the price of a vehicle, but is a measure of how much more or
-less an item cost relative to the base year (1982-1984 in this case). In
-essence, this CPI measures the spending power consumers have over the
-good. Overall, there does not appear to be any sharp fluctuations in the
-data but we do have a couple periods of relatively rapid vehicle price
-inflation, namely from the 70s to the late 1990s and then again after
-the arrival of COVID-19 in 2020. It is interesting to see that from the
-late 1990s to 2020, the CPI value of cars did not change drastically.
 
 Records for the price index of gasoline start from February 1968 and are
 recorded monthly by the U.S. Bureau of Labor Statistics with no
@@ -270,6 +283,12 @@ since gradually come down. This data will allow us to understand what
 trends are present in terms of gasoline prices and whether gasoline
 prices have an effect on the total number of vehicles sold. In other
 words, do high gasoline prices lead to less consumers buying vehicles?
+
+```{r}
+unemp_ts
+```
+The data for unemployment rate goes back to January 1948 and is recorded on a monthly basis and is collected by the U.S. Bureau of Labor Statistics and there is no missingess present in this time series. From our data, we see general cyclical fluctiations with periods with varying periods of higher vs lower unemployment. There does not appear to have been a consistent trend of unemployment over the lifecycle of the data. In more recent times, we see that there has been a decrease in the unemployment rate since after the Great Recession following 2008 with a large spike in unemplopyment following the beginning stages of the COVID-19 pandemic. We can use the unemployment data to determine whether there is a relationship between rates of unemployment and the number of total vehicles sold in the United States, and if a relationship is present, we can attempt to determine the strength of the relationship. 
+
 
 ```{r}
 
@@ -322,6 +341,8 @@ models. Dinally, the third step is diagnostic checking where we examine
 the residuals from the fitted morel to see it they appear to be
 sufficient. If the model we originally chose is insufficient, then we
 should try other models until a sufficient model is found.
+
+Throughout this case study, we will aim to fit time series regression models that allow us to understand the relationships between the total number of vehicles sold and different economic variables. The selected will be Autoregressive Distributed Lag (ARDL) models, which use a combination of self lagged values, distributed lags, seasonality components, and trend components. Self lagged values means the model takes into account previous values of itself to make future predictions. Distributed lags means that the regression model takes into account previous values of an independent variable to make predictions. Finally, seasonality and trend components are extracted from the data itself. In order to construct an ARDL model, we must fiest examine the data and determine if the data is stationary either at I(0) or I(1). If the data is stationary, we can then begin to fit our models using criteria such as the Akaike Information Criterion (AIC) to select the best model. Finally, we will have to use diagnostic checking where we will examine the residuals from the fitted model to see if they appear sufficient. If we initially appear to fit models that do not fit the data properly, we should then go back and once again attempt to find an appropriate model.
 
 The first step to fitting our model is to see if any of our time series
 need to be transformed or adjusted, which often allows us to analyze
@@ -378,10 +399,11 @@ grid.arrange(total_adjusted, production_adjusted, fuel_adjusted)
 
 After running the calculations, we find that the appropriate $\lambda$
 value for total auto sales was approximately $0.53$, the appropriate
-$\lambda$ value for domestic auto production was $0.45$, and the appropriate $\lambda$ for gasoline CPI was $-0.36$. From the plots
-that we created above, we also see that we were able to successfully
-adjust our data since it appears that for the most part, our seasonal
-effects have been made consistent over the range of out time series.
+$\lambda$ value for domestic auto production was $0.45$, and the
+appropriate $\lambda$ for gasoline CPI was $-0.36$. From the plots that
+we created above, we also see that we were able to successfully adjust
+our data since it appears that for the most part, our seasonal effects
+have been made consistent over the range of out time series.
 
 The next step to fitting our model is to decompose our data into the
 time series' separate components. Depending on the type of data we have,
@@ -419,7 +441,7 @@ decomposition is shown below
 
 ```{r}
 fit <- ts(total_vehicles$total_adjusted, start = c(1976,01), frequency = 12) %>% seas(x11 = "")
-
+fit$data[,5]
 autoplot(fit)
 ```
 
@@ -465,7 +487,13 @@ y_t'' = y_t'-y_{t-1}' \\
 = y_t-2y_{t-1}+y_{t-2} 
 $$
 
-Yet another way method to convert non-stationary time series into stationary time series is through seasonal differencing. As the name suggests, this method of differencing is applied if strong seasonal patterns are present in the data. Seasonal differences are the difference between an observation and the previous observation from the same season and can be expressed as $$y_t' = y_t - y_{t-m}$$ where $m = \text{ the number of seasons}$.
+Yet another way method to convert non-stationary time series into
+stationary time series is through seasonal differencing. As the name
+suggests, this method of differencing is applied if strong seasonal
+patterns are present in the data. Seasonal differences are the
+difference between an observation and the previous observation from the
+same season and can be expressed as $$y_t' = y_t - y_{t-m}$$ where
+$m = \text{ the number of seasons}$.
 
 Before we start differencing our data, we should first test if our data
 is already stationary, which would then allow us to go straight into
@@ -474,15 +502,12 @@ Kwiatkowski-Phillip-Schmidt_shin (KPSS) test. The KPSS test works by
 breaking up a time series down into the following decomposition
 $$Y_t = r_t + \beta_t + \epsilon_t$$ where $r_t$ is a random walk,
 $\beta_t$ is the trend, and $\epsilon_t$ is the stationary error. The
-KPSS test also involves hypothesis testing with 
+KPSS test also involves hypothesis testing with
 $$H_0:Y_t\text{ is trend (or level) stationary}$$
-$$H_1: Y_t \text{ is a unit root process}$$ 
-where $H_0$ and $H_1$ is
-the null and alternative hypothesis respectively. Setting our
-significance level at e can now test each time series to determine
-whether they will require differencing.
-
-
+$$H_1: Y_t \text{ is a unit root process}$$ where $H_0$ and $H_1$ is the
+null and alternative hypothesis respectively. Setting our significance
+level at e can now test each time series to determine whether they will
+require differencing.
 
 The value of the t-statistic for each test is as follows:
 
@@ -503,12 +528,12 @@ kpss.tib %>%
 
 Since all of the time series have p-values that are less than 0.05, we
 can reject the null hypothesis and conclude that it is likely that all
-our time series are this suggests that differencing will be required in
-order to make our data stationary. We will demonstrate this process on
-our time series for gasoline CPI and for domestic auto production in
-order to show the process on seasonally adjusted and non-seasonally
-adjusted data respectively, but the process will be conducted on all
-time series in this case study as needed.
+our time series are this suggests that differencing or detrending will
+be required in order to make our data stationary. We will demonstrate
+this process on our time series for gasoline CPI and for domestic auto
+production in order to show the process on seasonally adjusted and
+non-seasonally adjusted data respectively, but the process will be
+conducted on all time series in this case study as needed.
 
 In the case of gasoline CPI the following procedure will first apply a
 differencing function and then plot the function to see if the
@@ -522,10 +547,14 @@ fuel_prices %>%
 
 plot(ts(difference(fuel_prices$CUSR0000SETB01), start = c(1982,02), frequency = 12))
 ```
-From the above plot, we see that there does not appear to be any defined pattern that this data follows, so we see that adding one difference allows the time series to become stationary. 
 
+From the above plot, we see that there does not appear to be any defined
+pattern that this data follows, so we see that adding one difference
+allows the time series to become stationary.
 
-The process for seasonal data is slightly different and the following will show how to create stationarity for data with seasonal patterns.
+The process for seasonal data is slightly different and the following
+will show how to create stationarity for data with seasonal patterns.
+
 ```{r}
 auto_production %>%
   mutate(diff_prod = difference(production_adjusted, 12) %>% difference()) %>%
@@ -537,33 +566,64 @@ diff_season <- autoplot(ts(difference(auto_production$production_adjusted, 12) %
 
 grid.arrange(diff1, diff_season)
 ```
-From the output `kpss_pvalue`, we see that we get a p-value greater than 0.1, which means that we can conclude that the differenced data is stationary, which will then allow us to complete further analysis of the data. In this case, we also seasonal differencing is also required because we see in the top plot that there is a strong seasonal pattern still present and seasonal differncing removes the pattern as seen in the lower plot.
 
-After we have successfully differenced our data, we can then begin to consider what types of models to fit to our stationary time series. When considering ARIMA models, there are two model types that we can use: autoregressive models and moving average models.
+From the output `kpss_pvalue`, we see that we get a p-value greater than
+0.1, which means that we can conclude that the differenced data is
+stationary, which will then allow us to complete further analysis of the
+data. In this case, we also seasonal differencing is also required
+because we see in the top plot that there is a strong seasonal pattern
+still present and seasonal differncing removes the pattern as seen in
+the lower plot.
 
-We will first discuss autoregressive models. In autoregression, our goal is to forecast the variable of interest using linear combinations of previous values of the variable. This means that in an autoregression, the variable is regressed on itself. An model that utilizes autoregression of order p can be denoted by 
+After we have successfully differenced our data, we can then begin to
+consider what types of models to fit to our stationary time series. When
+considering ARIMA models, there are two model types that we can use:
+autoregressive models and moving average models.
+
+We will first discuss autoregressive models. In autoregression, our goal
+is to forecast the variable of interest using linear combinations of
+previous values of the variable. This means that in an autoregression,
+the variable is regressed on itself. An model that utilizes
+autoregression of order p can be denoted by
 $$y_t = c + \phi_1y_{t-1} + \phi_2y_{t-2} + \cdots + \phi_py_{t-p} + \epsilon_t$$,
-where $\epsilon_t$ denotes white noise. In such a case, we would say that our model is an AR(p) model. For these types of models, we face certain constraints, mainly: 
+where $\epsilon_t$ denotes white noise. In such a case, we would say
+that our model is an AR(p) model. For these types of models, we face
+certain constraints, mainly:
 
-- For an AR(1) model: $-1 < \phi_1 < 1$ 
+-   For an AR(1) model: $-1 < \phi_1 < 1$
 
-- For an AR(2) model: $-1 < \phi_2 < 1, \phi_1 + \phi_2 < 1, \phi_2-\phi_1 < 1$.
+-   For an AR(2) model:
+    $-1 < \phi_2 < 1, \phi_1 + \phi_2 < 1, \phi_2-\phi_1 < 1$.
 
-
-While autoregression models use past values of itself, moving average models use past forecast errors in a regression_like model [@forecastbook]. Moving average models take on the form
+While autoregression models use past values of itself, moving average
+models use past forecast errors in a regression_like model
+[@forecastbook]. Moving average models take on the form
 $$y_t = c + \epsilon_t + \theta_1\epsilon_{t-1} + \theta_2\epsilon_{t-2} + \cdots + \theta_q\epsilon_{t-q}$$,
-where $\epsilon_t$ is white noise. In such a case, we would say that our model is an MA(q) model. Each value of $y_t$ can be thought of as a weighted moving average of past forecast errors. MA models also have stationarity constraints which are as follows: 
+where $\epsilon_t$ is white noise. In such a case, we would say that our
+model is an MA(q) model. Each value of $y_t$ can be thought of as a
+weighted moving average of past forecast errors. MA models also have
+stationarity constraints which are as follows:
 
-- For an MA(1) model: $-1 < \theta_1 < 1$ 
+-   For an MA(1) model: $-1 < \theta_1 < 1$
 
-- For an MA(2) model: $-1 < \theta_2 < 1, \theta_1 + \theta_2 >1, \theta_1-\theta_2 < 1$.
+-   For an MA(2) model:
+    $-1 < \theta_2 < 1, \theta_1 + \theta_2 >1, \theta_1-\theta_2 < 1$.
 
 ### Non-Seasonal ARIMA Models
-For our non-seasonal time series we can appropriately use Non-seasonal ARIMA models which follow the form $$y_t' = c + \phi_1y_{t-1}' + \cdots + \phi_py_{t-p}' + \theta_1\epsilon_{t-1} + \cdots + \theta_1\epsilon_{t-q} + \epsilon_t$$
 
-To find the best model, we will have to create ACF and PACF plots so that we may visually decide which ARIMA model may best model our stationary time series, we will also take advantage of functions which will pick the best ARIMA model and then compare the given answers. The ACF will allow us to decide which MA nmodel to use and the PACF will allow us to decide which AR model to use.
+For our non-seasonal time series we can appropriately use Non-seasonal
+ARIMA models which follow the form
+$$y_t' = c + \phi_1y_{t-1}' + \cdots + \phi_py_{t-p}' + \theta_1\epsilon_{t-1} + \cdots + \theta_1\epsilon_{t-q} + \epsilon_t$$
+
+To find the best model, we will have to create ACF and PACF plots so
+that we may visually decide which ARIMA model may best model our
+stationary time series, we will also take advantage of functions which
+will pick the best ARIMA model and then compare the given answers. The
+ACF will allow us to decide which MA nmodel to use and the PACF will
+allow us to decide which AR model to use.
 
 In the case of fuel prices:
+
 ```{r}
 fuel_prices %>%
   gg_tsdisplay(difference(fuel_adjusted), plot_type = 'partial')
@@ -573,6 +633,7 @@ fit <- fuel_prices %>%
 
 report(fit)
 ```
+
 ```{r}
 fuel_fit <- fuel_prices %>%
   model(arima310 = fable::ARIMA(fuel_adjusted ~ pdq(2,1,0)),
@@ -589,9 +650,11 @@ augment(fuel_fit) %>% filter(.model == 'search') %>%
   features(.innov, ljung_box, lag = 10, dof = 3)
 ```
 
-
 ### Seasonal ARIMA Models
-Combining autoregression and moving average models along with differencing allows us to obtain ARIMA models, which stands for Auto Regressive Integrated Moving Averge. ARIMA models can be written as
+
+Combining autoregression and moving average models along with
+differencing allows us to obtain ARIMA models, which stands for Auto
+Regressive Integrated Moving Averge. ARIMA models can be written as
 
 ```{r}
 auto_production_ts
@@ -605,17 +668,6 @@ fit3 <- auto_production %>%
 report(fit3)
 ```
 
-
-```{r}
-cpi_newcar %>%
-  gg_tsdisplay(difference(CUSR0000SETA01), plot_type = 'partial')
-
-fit2 <- cpi_newcar %>%
-  model(ARIMA(CUSR0000SETA01))
-
-report(fit2)
-```
-
 ```{r, include=FALSE}
 fit <- auto.arima(diff(fuel_prices$CUSR0000SETB01))
 fit
@@ -625,9 +677,9 @@ plot(forecasting)
 
 ```
 
-```{r, include=FALSE}
+```{r}
 total_vehicles %>%
-  ACF(difference(total_adjusted, 12)) %>%
+  ACF(difference(total_adjusted, 12) %>% difference()) %>%
   autoplot() + labs(title = "Total Vehicles Sold")
 
 total_vehicles %>%
@@ -644,9 +696,43 @@ After we have appropriately differenced our models so that they are
 stationary, we can then begin to consider what type of models to fit to
 our data.
 
+### Time Series Regression
+
 ```{r}
+# Total Auto Production and Bank Prime Rate Loans from 1976-01-01
+tap_bpm_data <- combined %>% filter(DATE >= "1976-01-01")
+tap_bpm <- dynlm::dynlm(TOTALNSA ~ MPRIME + L(TOTALNSA), data = tap_bpm_data)
+summary(tap_bpm)
+
+plot.ts(tap_bpm_data$TOTALNSA)
+lines(fitted(tap_bpm), col = "red")
+
+trys <- dynlm(total_vehicles$TOTALNSA ~ Lag(total_vehicles$TOTALNSA, 1) + Lag(total_vehicles$TOTALNSA, 12))
+
+plot.ts(total_vehicles$TOTALNSA)
+lines(fitted(trys), col = "red")
 ```
 
+```{r}
+tap_bpm <- combined %>%
+  filter(DATE >= "1976-01-01") %>% 
+  model(ARIMA(TOTALNSA ~ MPRIME + lag(MPRIME) + lag(MPRIME, 2) + lag(MPRIME, 3)))
+
+report(tap_bpm)
+
+tap_bpm %>% gg_tsresiduals()
+```
+
+```{r}
+augment(tap_bpm) %>%
+  features(.innov, ljung_box, dof = 3, lag = 24)
+```
+
+
+```{r}
+mod_data <- combined %>% filter(DATE >= "1976-01-01")
+mod <- lm(TOTALNSA ~ MPRIME, data = mod_data)
+```
 
 ```{r, include=FALSE}
 total_vehicles$TOTALNSA <- ts(total_vehicles$TOTALNSA, start = c(1976,01), frequency = 12)
@@ -708,7 +794,7 @@ adjreg2$fit$coef
 
 ```
 
-```{r, include=FALSE}
+```{r, include=TRUE}
 decomp_tv <- total_vehicles %>%
   model(stl = STL(TOTALNSA))
 
@@ -728,15 +814,10 @@ require(urca)
 total_vehicles$TOTALNSA %>% ur.kpss %>% summary() 
 auto_production$DAUPNSA %>% ur.kpss %>% summary()
 bank_rate$MPRIME %>% ur.kpss %>% summary()
-cpi_newcar$CUSR0000SETA01 %>% ur.kpss %>% summary()
 fuel_prices$CUSR0000SETB01 %>% ur.kpss %>% summary()
 ```
 
 
-```{r, include=FALSE}
-cpi_newcar %>% feasts::ACF(difference(log(CUSR0000SETA01), 1))%>%
-  autoplot()
-```
 
 ```{r, include=FALSE}
 plot(ts(auto_production$production_adjusted))
@@ -757,7 +838,7 @@ adjreg = sarima(auto_production$production_adjusted, 0,1,3, xreg = cbind(trend))
 total_vehicles %>% features(TOTALNSA, unitroot_kpss)
 auto_production %>% features(DAUPNSA, unitroot_kpss)
 bank_rate %>% features(MPRIME, unitroot_kpss)
-cpi_newcar %>% features(CUSR0000SETA01, unitroot_kpss)
 fuel_prices %>% features(CUSR0000SETB01, unitroot_kpss)
 ```
+
 ## References
