@@ -124,8 +124,6 @@ summary(model1)
 ### Total Vehicles and Gas CPI:
 ```{r}
 gas_cpi <- ts(log(fuel_prices$CUSR0000SETB01), start = c(1968, 2), frequency = 12) 
-
-
 kpss.test(gas_cpi, null = "Trend")
 
 gas_cpi <- diff(gas_cpi, 1)
@@ -187,7 +185,14 @@ autoplot(total_unemp_analysis)
 model8 <- dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
 
 summary(model8)
+
 checkresiduals(model8)
+```
+```{r}
+(fit <- auto.arima(uschange[,"Consumption"],
+  xreg=uschange[,"Income"]))
+
+veh_unemp_fit <- auto.arima(model8, xreg = model.matrix(model8))
 ```
 
 
@@ -202,7 +207,7 @@ auto_prod <- diff(auto_prod, 1)
 kpss.test(auto_prod, null = "Trend")
 adf.test(auto_prod)
 
-total_prod_analysis <- ts.intersect(diff_total_log, auto_prod)
+total_prod_analysis <- ts.intersect(diff_total_log, auto_prod) 
 
 model51 <- dynlm(diff_total_log ~ L(diff_total_log, 1:10) + L(auto_prod, 0:10) + season(total_log), data = total_prod_analysis)
 
@@ -223,5 +228,342 @@ sapply
 BICs <- base::sapply(order, function(x)
   BIC(dynlm(diff_total_log ~ L(diff_total_log, 1:x) + L(auto_prod, 1:x))))
 
+```
+
+```{r}
+
+xreg <- model.matrix(model51, newdata = total_prod_analysis)
+
+model_arima <- auto.arima(total_prod_analysis[, "diff_total_log"], xreg = xreg)
+
+plot(total_prod_analysis[, "diff_total_log"])
+```
+
+
+```{r}
+mod_data <- combined %>% filter(DATE >= "1976-01-01")
+mod <- lm(TOTALNSA ~ MPRIME, data = mod_data)
+```
+
+```{r}
+auto_production %>%
+  mutate(diff_prod = difference(production_adjusted, 12) %>% difference()) %>%
+  features(diff_prod, unitroot_kpss) %>%
+  gt::gt()
+
+diff1 <- autoplot(ts(difference(auto_production$production_adjusted), start = c(1993,01), frequency = 12))
+diff_season <- autoplot(ts(difference(auto_production$production_adjusted, 12) %>% difference(), start = c(1993,01), frequency = 12))
+
+grid.arrange(diff1, diff_season)
+```
+
+
+
+
+After we have successfully differenced our data, we can then begin to
+consider what types of models to fit to our stationary time series. When
+considering ARIMA models, there are two model types that we can use:
+autoregressive models and moving average models.
+
+
+
+
+
+We will first discuss autoregressive models. In autoregression, our goal
+is to forecast the variable of interest using linear combinations of
+previous values of the variable. This means that in an autoregression,
+the variable is regressed on itself. An model that utilizes
+autoregression of order p can be denoted by
+$$y_t = c + \phi_1y_{t-1} + \phi_2y_{t-2} + \cdots + \phi_py_{t-p} + \epsilon_t$$,
+where $\epsilon_t$ denotes white noise. In such a case, we would say
+that our model is an AR(p) model. For these types of models, we face
+certain constraints, mainly:
+
+-   For an AR(1) model: $-1 < \phi_1 < 1$
+
+-   For an AR(2) model:
+    $-1 < \phi_2 < 1, \phi_1 + \phi_2 < 1, \phi_2-\phi_1 < 1$.
+
+While autoregression models use past values of itself, moving average
+models use past forecast errors in a regression_like model
+[@forecastbook]. Moving average models take on the form
+$$y_t = c + \epsilon_t + \theta_1\epsilon_{t-1} + \theta_2\epsilon_{t-2} + \cdots + \theta_q\epsilon_{t-q}$$,
+where $\epsilon_t$ is white noise. In such a case, we would say that our
+model is an MA(q) model. Each value of $y_t$ can be thought of as a
+weighted moving average of past forecast errors. MA models also have
+stationarity constraints which are as follows:
+
+-   For an MA(1) model: $-1 < \theta_1 < 1$
+
+-   For an MA(2) model:
+    $-1 < \theta_2 < 1, \theta_1 + \theta_2 >1, \theta_1-\theta_2 < 1$.
+    
+    
+### Non-Seasonal ARIMA Models
+
+For our non-seasonal time series we can appropriately use Non-seasonal
+ARIMA models which follow the form
+$$y_t' = c + \phi_1y_{t-1}' + \cdots + \phi_py_{t-p}' + \theta_1\epsilon_{t-1} + \cdots + \theta_1\epsilon_{t-q} + \epsilon_t$$
+
+To find the best model, we will have to create ACF and PACF plots so
+that we may visually decide which ARIMA model may best model our
+stationary time series, we will also take advantage of functions which
+will pick the best ARIMA model and then compare the given answers. The
+ACF will allow us to decide which MA nmodel to use and the PACF will
+allow us to decide which AR model to use.
+
+In the case of fuel prices:
+
+```{r}
+fuel_prices %>%
+  gg_tsdisplay(difference(fuel_adjusted), plot_type = 'partial')
+
+fit <- fuel_prices %>%
+  model(ARIMA(fuel_adjusted))
+
+report(fit)
+```
+
+```{r}
+fuel_fit <- fuel_prices %>%
+  model(arima310 = fable::ARIMA(fuel_adjusted ~ pdq(2,1,0)),
+        arima011 = fable::ARIMA(fuel_adjusted ~ pdq(0,1,1)),
+        stepwise = fable::ARIMA(fuel_adjusted),
+        search = fable::ARIMA(fuel_adjusted, stepwise = FALSE))
+fuel_fit
+
+glance(fuel_fit) %>% arrange(AICc) %>% select(.model:BIC)
+
+fuel_fit %>% select(search) %>% gg_tsresiduals()
+
+augment(fuel_fit) %>% filter(.model == 'search') %>%
+  features(.innov, ljung_box, lag = 10, dof = 3)
+```
+
+### Seasonal ARIMA Models
+
+Combining autoregression and moving average models along with
+differencing allows us to obtain ARIMA models, which stands for Auto
+Regressive Integrated Moving Averge. ARIMA models can be written as
+
+```{r}
+auto_production_ts
+
+
+auto_production %>%
+  gg_tsdisplay(difference(production_adjusted, 12) %>% difference(), plot_type = 'partial', lag = 36)       
+
+auto_production <- auto_production %>% mutate(production_log_adjust =  difference(log(DAUPNSA), 12) %>% difference())
+
+fit3 <- auto_production %>% filt
+  model(ARIMA())
+
+fit3 <- auto.arima(diff(log(auto_production$DAUPNSA), 12) %>% diff())
+
+fit_things <- auto_production %>% model(ARIMA(production_log_adjust))
+
+report(fit_things)
+
+gg_tsresiduals(fit_things)
+
+augment(fit_things) %>% features(.innov, ljung_box, lag = 10, dof = 3)
+forecast(fit3, h=10)
+
+fit_things %>% forecast(h = 24) %>% autoplot(auto_production)
+
+autoplot(auto_production)
+plot(forecast(fit3, h=30))
+
+trend <- auto
+
+thingy <- auto.arima(auto_production$DAUPNSA)
+
+auto_production2 <- auto_production %>% filter(DATE <= "2020-01-01")
+
+thingy2 <-auto.arima(auto_production2$DAUPNSA)
+
+auto_production2 <- auto_production2 %>%
+  mutate(pre_difference = difference(auto_prodction2$DAUPNSA))
+  
+plot(auto_prodction2$pre_difference)
+
+thingy.forecast <- forecast(thingy, level = c(95), h = 50)
+thingy2.forecast <- forecast(thingy2, level = c(95), h = 36)
+
+autoplot(thingy.forecast)
+autoplot(thingy2.forecast)
+
+grid.arrange(autoplot(auto_production), autoplot(thingy2.forecast))
+
+a <- forecast(fit3, level = c(95), h = 50)
+autoplot(a + seasonaldummy(auto_production))
+```
+
+```{r, include=FALSE}
+fit <- auto.arima(diff(fuel_prices$CUSR0000SETB01))
+fit
+forecasting <- forecast(fit, h = 30) 
+
+plot(forecasting)
+
+```
+
+```{r}
+total_vehicles %>%
+  ACF(difference(total_adjusted, 12) %>% difference()) %>%
+  autoplot() + labs(title = "Total Vehicles Sold")
+
+total_vehicles %>%
+  mutate(diff_total = difference(total_adjusted)) %>%
+  features(diff_total, unitroot_kpss)
+
+total_vehicles %>%
+  features(total_adjusted, unitroot_ndiffs)
+
+total_vehicles %>% model(ARIMA(total_adjusted)) %>% report()
+```
+
+After we have appropriately differenced our models so that they are
+stationary, we can then begin to consider what type of models to fit to
+our data.
+
+
+```{r, include=FALSE}
+total_vehicles$TOTALNSA <- ts(total_vehicles$TOTALNSA, start = c(1976,01), frequency = 12)
+
+plot(total_vehicles$TOTALNSA)
+
+dopen <- diff(total_vehicles$TOTALNSA, 1)
+
+ddopen <- diff(dopen, 1)
+
+plot(dopen)
+plot(ddopen)
+ar1_model<- auto.arima(ddopen)
+
+ar1_model
+
+forecasts_AR1<- forecast(ar1_model, h = 30)
+
+plot(forecasts_AR1)
+```
+
+```{r, include=FALSE}
+cpi_newcar$CUSR0000SETA01 <- ts(cpi_newcar$CUSR0000SETA01, start = c(1953,01), frequency = 12)
+
+plot(cpi_newcar$CUSR0000SETA01)
+
+dopen2 <- diff(cpi_newcar$CUSR0000SETA01, 1)
+
+ddopen2 <- diff(dopen2, 1)
+
+plot(dopen2)
+plot(ddopen2)
+ar2_model<- auto.arima(dopen2)
+
+ar2_model
+
+forecasts_AR2<- forecast(ar2_model, h = 30)
+
+plot(forecasts_AR2)
+```
+
+```{r, include=FALSE}
+plot(auto_production$DAUPNSA)
+
+tre <- time(auto_production$DAUPNSA) - mean(time(auto_production$DAUPNSA))
+
+tre2 <- tre^2
+
+regmodel2 = lm(auto_production$DAUPNSA ~ tre)
+
+summary(regmodel2)
+
+acf2(resid(regmodel2))
+
+adjreg2 = sarima(auto_production$DAUPNSA, 3, 1, 3, xreg = cbind(tre))
+
+adjreg2$fit$coef
+
+
+```
+
+```{r, include=TRUE}
+decomp_tv <- total_vehicles %>%
+  model(stl = STL(TOTALNSA))
+
+components(decomp_tv) %>% autoplot()
+```
+
+```{r, include=FALSE}
+trial <- autoplot(combined %>% filter(DATE > "1975-12-01"), TOTALNSA)
+```
+
+```{r, message=FALSE, warning=FALSE}
+GGally::ggpairs(combined[,2:6])
+```
+
+```{r, include=FALSE}
+require(urca)
+total_vehicles$TOTALNSA %>% ur.kpss %>% summary() 
+auto_production$DAUPNSA %>% ur.kpss %>% summary()
+bank_rate$MPRIME %>% ur.kpss %>% summary()
+fuel_prices$CUSR0000SETB01 %>% ur.kpss %>% summary()
+```
+
+
+
+```{r, include=FALSE}
+plot(ts(auto_production$production_adjusted))
+
+trend = time(auto_production$production_adjusted) - mean(time(auto_production$production_adjusted))
+
+regmodel = lm(auto_production$production_adjusted ~ trend)
+
+summary(regmodel)
+
+acf2(resid(regmodel))
+
+adjreg = sarima(auto_production$production_adjusted, 0,1,3, xreg = cbind(trend))
+
+```
+
+```{r, include=FALSE}
+total_vehicles %>% features(log(TOTALNSA), unitroot_kpss)
+auto_production %>% features(log(DAUPNSA), unitroot_kpss)
+bank_rate %>% features(MPRIME, unitroot_kpss)
+fuel_prices %>% features(log(CUSR0000SETB01), unitroot_kpss)
+unemployment %>% features(UNRATE, unitroot_kpss)
+unemployment %>% features(UNRATE, unitroot_kpss)
+```
+
+```{r}
+# Total Auto Production and Bank Prime Rate Loans from 1976-01-01
+tap_bpm_data <- combined %>% filter(DATE >= "1976-01-01")
+tap_bpm <- dynlm::dynlm(TOTALNSA ~ MPRIME + L(TOTALNSA), data = tap_bpm_data)
+summary(tap_bpm)
+
+plot.ts(tap_bpm_data$TOTALNSA)
+lines(fitted(tap_bpm), col = "red")
+
+trys <- dynlm(total_vehicles$TOTALNSA ~ Lag(total_vehicles$TOTALNSA, 1) + Lag(total_vehicles$TOTALNSA, 12))
+
+plot.ts(total_vehicles$TOTALNSA)
+lines(fitted(trys), col = "red")
+```
+
+```{r}
+tap_bpm <- combined %>%
+  filter(DATE >= "1976-01-01") %>% 
+  model(ARIMA(TOTALNSA ~ MPRIME + lag(MPRIME) + lag(MPRIME, 2) + lag(MPRIME, 3)))
+
+report(tap_bpm)
+
+tap_bpm %>% gg_tsresiduals()
+```
+
+```{r}
+augment(tap_bpm) %>%
+  features(.innov, ljung_box, dof = 3, lag = 24)
 ```
 
