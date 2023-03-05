@@ -605,3 +605,241 @@ lines(fitted(dfm2), col = 4)
 if(require("lmtest")) encomptest(dfm1, dfm2)
 ```
 
+
+```{r, include = FALSE}
+total_log <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12) 
+diff_total_log <- diff(total_log)
+
+auto_prod <- ts(log(auto_production$DAUPNSA), start = c(1993, 1), frequency = 12)
+auto_prod <- diff(auto_prod)
+
+total_prod_analysis <- ts.intersect(diff_total_log, auto_prod)
+
+auto_ardl(diff_total_log ~ auto_prod, data = total_prod_analysis, max_order = 24, selection = "BIC")
+auto_ardl(diff_total_log ~ auto_prod, data = total_prod_analysis, max_order = 24)
+auto_ardl(diff_total_log ~ auto_prod, data = total_prod_analysis, max_order = 24)
+VARselect(diff_total_log, lag.max = 24)
+VARselect(auto_prod, lag.max = 24)
+```
+
+```{r}
+prod_total_modelvarbic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:6) + season(diff_total_log), data = total_prod_analysis)
+
+prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
+
+
+# checkresiduals(prod_total_modelvarbic) 
+forecast::checkresiduals(prod_total_model_auto)
+
+# par(mfrow = c(2,2))
+# plot(prod_total_modelvarbic)
+
+
+par(mfrow = c(2,2))
+plot(prod_total_model_auto)
+```
+From the outputs, above showing our residual analysis, we can see that the residual values we obtain are consistent with being white noise and that all our values appear normally distributed. Additionally, the p-value we got from the Breusch-Godfrey test was 0.0879 > 0.05, therefore we can conclude that it is likely that our residuals are not serially correlated. We can then conclude that our current model is appropriate with modeling the true data. We can now test to see if adding the lags for domestic auto production were helpful in predicting the number of vehicles sold.
+
+
+
+```{r}
+prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
+prod_total_noprod <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(diff_total_log), data = total_prod_analysis)
+
+anova(prod_total_model_auto, prod_total_noprod) 
+```
+From the Granger-Causality test conducted above, we get a p-value < 0.05, therefore we can reject the null hypothesis and conclude that it is likely that domestic auto production Granger-causes the number of vehicles sold. For the following time series, the same process will be followed with the output being listed in a table.
+
+```{r}
+plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
+  lines(stats::diffinv(-fitted(prod_total_model_auto), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual (Black) vs Fitted (Red) Model")
+
+  
+```
+
+
+### Total Vehicles Sold and Unemployment Rate:
+
+
+
+```{r}
+unemp <- ts(unemployment$UNRATE, start = c(1948, 1), frequency = 12)
+unemp <- diff(unemp)
+total_unemp_analysis <- ts.intersect(diff_total_log, unemp)
+```
+
+```{r, include = FALSE}
+ARDL::auto_ardl(diff_total_log ~ unemp, data = total_unemp_analysis, max_order = 24, selection = "BIC")
+ARDL::auto_ardl(diff_total_log ~ unemp, data = total_unemp_analysis, max_order = 24)
+vars::VARselect(unemp, lag.max = 24)
+vars::VARselect(diff_total_log, lag.max = 24)
+
+unemp_total_modelvarbic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
+unemp_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:12) + season(diff_total_log), data = total_unemp_analysis)
+unemp_total_model_autoaic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:15) + L(unemp, 0:14) + season(diff_total_log), data = total_unemp_analysis)
+
+checkresiduals(unemp_total_model_autobic)
+checkresiduals(unemp_total_model_autoaic)
+checkresiduals(unemp_total_modelvarbic)
+```
+
+
+```{r, include = FALSE}
+unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
+
+checkresiduals(unemp_total_modelvar_bic)
+```
+
+```{r}
+unemp_total_nounemp <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12), data = total_unemp_analysis)
+
+anova(unemp_total_modelvar_bic, unemp_total_nounemp) 
+```
+
+
+```{r}
+model_emp <- c("ARDL(12,1)", "ARDL(12, 14)", "ARDL(15,14)")
+selection_crit_emp <- c("Individually Selected BIC", "Auto_ARDL BIC", "Auto_ARDL AIC")
+significant_p_emp <- c(0.2617, 0.04512, 0.00733)
+emp_adequacy <- c("Adequate", "Inadequate", "Inadequate")
+emp_granger_causality_F <- c(16.105, NULL, NULL)
+emp_granger_p <- c("< 0.01", "", "")
+
+emp.tib <- tibble(model_emp, selection_crit_emp, significant_p_emp, emp_adequacy, emp_granger_p)
+
+emp.tib %>%
+  gt::gt() %>%
+  gt::tab_header(title = "Total Vehicle Sales and Unemployment Model Analysis (Breusch-Godfrey Test)") %>%
+  gt::cols_label(model_emp = "Model",
+             selection_crit_emp = "Selection Criteria",
+             significant_p_emp = "P-Values",
+             emp_adequacy = "Model Adequacy",
+             emp_granger_p = "Granger Causality P-Value")
+```
+
+
+
+```{r}
+unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
+unemp_total_nounemp <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_unemp_analysis)
+
+anova(unemp_total_modelvar_bic, unemp_total_nounemp) 
+```
+
+```{r}
+plot(diffinv(total_unemp_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
+  lines(diffinv(-fitted(unemp_total_modelvar_bic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
+```
+
+
+### Total Vehicles Sold and Gas CPI:
+
+
+```{r}
+gas_cpi <- ts(log(fuel_prices$CUSR0000SETB01), start = c(1968, 2), frequency = 12) 
+
+gas_cpi <- diff(gas_cpi)
+
+total_gas_analysis <- ts.intersect(diff_total_log, gas_cpi)
+```
+
+```{r, include = FALSE}
+ARDL::auto_ardl(diff_total_log ~ gas_cpi, data = total_gas_analysis, max_order = 24, selection = "BIC")
+ARDL::auto_ardl(diff_total_log ~ gas_cpi, data = total_gas_analysis, max_order = 24)
+vars::VARselect(gas_cpi, lag.max = 24)
+vars::VARselect(diff_total_log, lag.max = 24)
+
+gas_total_modelvarbic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(gas_cpi, 0:2) + season(diff_total_log), data = total_gas_analysis)
+gas_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(gas_cpi, 0:12) + season(diff_total_log), data = total_gas_analysis)
+gas_total_model_autoaic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:15) + L(gas_cpi, 0:12) + season(diff_total_log), data = total_gas_analysis)
+
+checkresiduals(gas_total_modelvarbic)
+checkresiduals(gas_total_model_autobic)
+checkresiduals(gas_total_model_autoaic)
+```
+
+```{r}
+gas_total_nogas <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12), data = total_gas_analysis)
+
+anova(gas_total_model_autobic, gas_total_nogas) 
+```
+
+
+```{r}
+model_gas <- c("ARDL(12,2)", "ARDL(12, 12)", "ARDL(15,12)")
+selection_crit_gas <- c("Individually Selected BIC", "Auto_ARDL BIC", "Auto_ARDL AIC")
+significant_p_gas <- c(0.0331, 0.1262, 0.03477)
+gas_adequacy <- c("Inadequate", "Adequate", "Inadequate")
+gas_granger_p <- c("", "< 0.01", "")
+
+gas.tib <- tibble(model_gas, selection_crit_gas, significant_p_gas, gas_adequacy, gas_granger_p)
+
+gas.tib %>%
+  gt::gt() %>%
+  gt::tab_header(title = "Total Vehicle Sales and Unemployment Model Analysis (Breusch-Godfrey Test)") %>%
+  gt::cols_label(model_gas = "Model",
+             selection_crit_gas = "Selection Criteria",
+             significant_p_gas = "P-Values",
+             gas_adequacy = "Model Adequacy",
+             gas_granger_p = "Granger Causality P-Value")
+```
+
+```{r}
+plot(diffinv(total_gas_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
+  lines(diffinv(-fitted(gas_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
+```
+
+### Total Vehicles Sold and Bank Prime Rate Loan:
+
+```{r}
+rate <- ts(bank_rate$MPRIME, start = c(1949, 1), frequency = 12)
+
+rate <- diff(rate)
+
+total_rate_analysis <- ts.intersect(diff_total_log, rate)
+```
+
+```{r, include = FALSE}
+ARDL::auto_ardl(diff_total_log ~ rate, data = total_rate_analysis, max_order = 24, selection = "BIC")
+ARDL::auto_ardl(diff_total_log ~ rate, data = total_rate_analysis, max_order = 24)
+vars::VARselect(rate, lag.max = 24)
+vars::VARselect(diff_total_log, lag.max = 24)
+
+rate_total_modelvarbic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(rate, 0:13) + season(total_log), data = total_rate_analysis)
+rate_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + rate + season(total_log), data = total_rate_analysis)
+rate_total_model_autoaic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:14) + L(rate, 0:13) + season(total_log), data = total_rate_analysis)
+
+checkresiduals(rate_total_model_autobic)
+checkresiduals(rate_total_model_autoaic)
+checkresiduals(rate_total_modelvarbic)
+```
+```{r}
+rate_total_norate <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12), data = total_rate_analysis)
+
+anova(rate_total_model_autobic, rate_total_norate) 
+```
+
+```{r}
+model_rate <- c("ARDL(12,13)", "ARDL(12, 0)", "ARDL(14,13)")
+selection_crit_rate <- c("Individually Selected BIC", "Auto_ARDL BIC", "Auto_ARDL AIC")
+significant_p_rate <- c(0.01152, 0.05509, 0.0008)
+rate_adequacy <- c("Indequate", "Adequate", "Inadequate")
+rate_granger_p <- c("", "< 0.01", "")
+
+rate.tib <- tibble(model_rate, selection_crit_rate, significant_p_rate, rate_adequacy, rate_granger_p)
+
+rate.tib %>%
+  gt::gt() %>%
+  gt::tab_header(title = "Total Vehicle Sales and Bank Prime Rates Model Analysis (Breusch-Godfrey Test)") %>%
+  gt::cols_label(model_rate = "Model",
+             selection_crit_rate = "Selection Criteria",
+             significant_p_rate = "P-Values",
+             rate_adequacy = "Model Adequacy",
+             rate_granger_p = "Granger Causality P-Value")
+```
+
+```{r}
+plot(diffinv(total_rate_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
+  lines(diffinv(-fitted(rate_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
+```
+
