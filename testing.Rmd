@@ -9,6 +9,18 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(AER)
+library(dynlm)
+library(forecast)
+library(readxl)
+library(stargazer)
+library(scales)
+library(quantmod)
+library(urca)
+```
+
+
 ### Detrended Total Vehicle Sales
 
 ```{r}
@@ -565,5 +577,31 @@ tap_bpm %>% gg_tsresiduals()
 ```{r}
 augment(tap_bpm) %>%
   features(.innov, ljung_box, dof = 3, lag = 24)
+```
+
+
+### Trying to see what code does
+
+```{r}
+USMacroSWQ <- read_xlsx("Data/us_macro_quarterly.xlsx",
+                         sheet = 1,
+                         col_types = c("text", rep("numeric", 9)))
+
+# format date column
+USMacroSWQ$X__1 <- as.yearqtr(USMacroSWQ$X__1, format = "%Y:0%q")
+
+# adjust column names
+colnames(USMacroSWQ) <- c("Date", "GDPC96", "JAPAN_IP", "PCECTPI", 
+                          "GS10", "GS1", "TB3MS", "UNRATE", "EXUSUK", "CPIAUCSL")
+```
+
+```{r}
+data("USDistLag", package = "lmtest")
+dfm1 <- dynlm(consumption ~ gnp + L(consumption), data = USDistLag)
+dfm2 <- dynlm(consumption ~ gnp + L(gnp), data = USDistLag)
+plot(USDistLag[, "consumption"]) +
+lines(fitted(dfm1), col = 2) +
+lines(fitted(dfm2), col = 4)
+if(require("lmtest")) encomptest(dfm1, dfm2)
 ```
 
