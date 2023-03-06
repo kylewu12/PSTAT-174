@@ -12,7 +12,7 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE, message = FALSE, warning=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
 ```
 
 ```{r, message = FALSE, include=FALSE}
@@ -53,12 +53,9 @@ data <- data %>%
 
 ```{r, message = FALSE}
 #Data read in individually 
-cpi_newcar <- readr::read_csv("CUSR0000SETA01.csv")
-c_newcar <- readr::read_csv("CUUR0000SETA01.csv") %>% filter(DATE > "1960-01-01")
 auto_production <- readr::read_csv("DAUPNSA.csv")
 total_vehicles <- readr::read_csv("TOTALNSA.csv")
 fuel_prices <- readr::read_csv("CUSR0000SETB01.csv")
-f_price <- readr::read_csv("CUUR0000SETB01.csv") %>% filter(!is.na("CUUR0000SETB01"))
 bank_rate <- readr::read_csv("MPRIME.csv")
 unemployment <- readr::read_csv("UNRATE.csv")
 ```
@@ -123,16 +120,16 @@ combined <- as_tsibble(combined) %>%
 ```
 
 ## Data Application
-In the United States, one of the main modes of transportation is
-the automobile. To the average consumer, it has seemed that the new car
-has been slowly getting out of reach, with the average price of a new
+
+In the United States, one of the main modes of transportation is the
+automobile. To the average consumer, it has seemed that the new car has
+been slowly getting out of reach, with the average price of a new
 vehicle currently sitting around \$49,500 [@carprice2023]. Despite the
 high prices of vehicles for many Americans a car is not only a luxury,
 but a necessity, and many citizens find themselves shelling out a large
 portion of their paychecks for their transportation. Even when
 individuals opt to purchase used cars, they are still often faced with
-prices that would have seemed exorbitant not that long ago. 
-
+prices that would have seemed exorbitant not that long ago.
 
 Since this is the case, studying the United States car market over time
 will allow us to gain useful knowledge that will be of significance not
@@ -154,8 +151,7 @@ hard to say if COVID was fully responsible for the decreased production,
 or if it would have happened regardless [@FRED2022]. Research by FRED
 also indicated that despite the increase in population since the mid
 1970s, the total number of vehicles sold has remained relatively flat
-aver the past few decades [@FRED2021]. 
-
+aver the past few decades [@FRED2021].
 
 Looking at the data offered by the Federal Reserve could allow us to
 answer even more questions regarding the American auto market. For
@@ -175,16 +171,14 @@ auto market holistically, asking what the future may be in terms of
 vehicle purchases in the United States and is it likely that vehicle
 purchases return to pre-COVID levels. For the average consumer, the
 questions that will be answered will allow them to perhaps better plan
-for the expenditure that comes with the purchase of a new car. 
-
+for the expenditure that comes with the purchase of a new car.
 
 Furthermore, studying time series data of vehicles can allow us to
 better understand how or if certain policy changes may change vehicle
 prices or purchasing behavior. For example, we could potentially find
 time periods with varying federal funds rates, which influence bank
 prime loan rates to see if this changed the overall behavior of
-consumers. 
-
+consumers.
 
 Gathering all this data about the American auto market would then allow
 us to broadly gain an understanding not only of factors affecting
@@ -210,7 +204,7 @@ Since we will be creating time series regression models, we first want
 to get an overview of the data to see how each variable relates to the
 other, which we can do through a correlation plot.
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE, fig.cap= "Correlation Plot."}
 GGally::ggpairs(combined[,2:6])
 ```
 
@@ -227,7 +221,7 @@ the factors as they may relate to projecting future car sales.
 
 The first variable we will look at is total vehicle sales.
 
-```{r}
+```{r, fig.cap= "Total New Vehicle Sales time series plot (Top) and Total Vehicle Sales seasonal subseries plot (Bottom)."}
 tvsubseries <- total_vehicles %>%
   gg_subseries(TOTALNSA) + 
   labs(y = "Thousands of Vehicles Sold", title = "Total Vehicle Sales")
@@ -259,7 +253,7 @@ whether there has been a general trend in vehicle sales.
 We can now look at the consumer price index of new vehicles in the
 United States.
 
-```{r}
+```{r, fig.cap="Time series plot of Gasoline CPI (Top) and Unemployment Rate (Bottom)."}
 grid.arrange(fuel_prices_ts, unemp_ts)
 ```
 
@@ -273,7 +267,6 @@ since gradually come down. This data will allow us to understand what
 trends are present in terms of gasoline prices and whether gasoline
 prices have an effect on the total number of vehicles sold. In other
 words, do high gasoline prices lead to less consumers buying vehicles?
-
 
 The data for unemployment rate goes back to January 1948 and is recorded
 on a monthly basis and is collected by the U.S. Bureau of Labor
@@ -289,8 +282,7 @@ there is a relationship between rates of unemployment and the number of
 total vehicles sold in the United States, and if a relationship is
 present, we can attempt to determine the strength of the relationship.
 
-```{r}
-
+```{r, fig.cap="Time series plot of Domestic Auto Production (Top) and Domestic Auto Production Seasonal Plot (Bottom)."}
 production_season <- auto_production %>% 
   gg_season(DAUPNSA, polar = TRUE)
 
@@ -310,7 +302,7 @@ highlighted a long-term trend that would have occurred regardless. Using
 this data will then also allow us to make forecasts on what the future
 outlook may be for domestic auto production.
 
-```{r}
+```{r, fig.cap="Bank Prime Rate Loan."}
 bank_rate_ts
 ```
 
@@ -360,37 +352,7 @@ gasoline price index. Since these time series show variations that
 change with the level of the series, in order to allow the data to
 remain interpretable, we will apply logarithmic transformations.
 
-```{r, message=FALSE}
-lambda <- total_vehicles %>%
-  features(TOTALNSA, features = guerrero) %>%
-  pull(lambda_guerrero)
-
-total_adjusted <- total_vehicles %>%
-  autoplot(box_cox(TOTALNSA, lambda)) 
-
-total_vehicles <- total_vehicles %>%
-  dplyr::mutate(total_adjusted = box_cox(TOTALNSA, lambda))
-
-lambda2 <- auto_production %>%
-  features(DAUPNSA, features = guerrero) %>%
-  pull(lambda_guerrero)
-
-production_adjusted <- auto_production %>%
-  autoplot(box_cox(DAUPNSA, lambda2)) 
-
-auto_production <- auto_production %>%
-  dplyr::mutate(production_adjusted = box_cox(DAUPNSA, lambda2))
-
-lambda3 <- fuel_prices %>%
-  features(CUSR0000SETB01, features = guerrero) %>%
-  pull(lambda_guerrero)
-
-fuel_adjusted <- fuel_prices %>%
-  autoplot(fabletools::box_cox(CUSR0000SETB01, lambda3))
-
-fuel_prices <- fuel_prices %>%
-  dplyr::mutate(fuel_adjusted = fabletools::box_cox(CUSR0000SETB01, lambda3))
-
+```{r, message=FALSE, fig.cap="Log adjusted plot for Total New Vehicle Sales (Top), Domestic Auto Production (Middle), and Gasoline CPI (Bottom)."}
 total_adjusted <- total_vehicles %>%
   autoplot(log(TOTALNSA))
 
@@ -437,8 +399,8 @@ estimated without data beign seasonally adjusted, X-11 models use an
 iterative approach to come up with the best solution. An example of X-11
 decomposition is shown below
 
-```{r}
-fit <- ts(total_vehicles$total_adjusted, start = c(1976,01), frequency = 12) %>% seas(x11 = "")
+```{r, fig.cap="X-11 decomposition of Total New Vehicle Sales"}
+fit <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12) %>% seas(x11 = "")
 
 autoplot(fit)
 ```
@@ -450,8 +412,8 @@ forecast the data moving forwards. Additionally, following the
 decomposition, we can then see how the trend and seasonally adjusted
 versions of our data fit with the original data.
 
-```{r}
-total_auto <- ts(((total_vehicles$TOTALNSA^lambda-1)/lambda), start = c(1976,01), frequency = 12)
+```{r, fig.cap="Total New Vehicles Sold with trend and seasonally adjusted graph overlayed."}
+total_auto <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12)
 
 autoplot(total_auto, series = "Data") +
   autolayer(trendcycle(fit), series = "Trend") + 
@@ -582,23 +544,26 @@ adf.tib %>%
 
 From the two tables, we see that we have slightly conflicting
 information as to which time series are stationary. From the KPSS tests,
-we see that totalall our variables have p-values less than
-0.05, meaning that we will have to difference the data to attempt to
-make our data stationary. From our ADF test, we see that with the
-exception of our domestic auto production and unemployment time series, all our
-other time series are non-staionary. To be safe, data identified as non-stationary by either tests will be differenced and then we will once again conduct the KPSS and ADF tests on them to check for stationarity.
+we see that totalall our variables have p-values less than 0.05, meaning
+that we will have to difference the data to attempt to make our data
+stationary. From our ADF test, we see that with the exception of our
+domestic auto production and unemployment time series, all our other
+time series are non-staionary. To be safe, data identified as
+non-stationary by either tests will be differenced and then we will once
+again conduct the KPSS and ADF tests on them to check for stationarity.
 
-In the case of domestic auto production the following procedure will first apply a
-differencing function and then plot the function to see if the
-differencing allowed the data to become stationary.
+In the case of domestic auto production the following procedure will
+first apply a differencing function and then plot the function to see if
+the differencing allowed the data to become stationary.
 
-```{r}
+```{r, fig.cap="Domestic Auto Production log transformed and differenced."}
 plot(ts(difference(log(auto_production$DAUPNSA)), start = c(1993,01), frequency = 12), ylab = "Auto Production")
 ```
 
-From the above plot, we see that with the exception of the spikes brought about from COVID-19 production disruptions there does not appear to be any defined pattern that this data follows, so we see that adding one difference
-allows the time series to become stationary.
-
+From the above plot, we see that with the exception of the spikes
+brought about from COVID-19 production disruptions there does not appear
+to be any defined pattern that this data follows, so we see that adding
+one difference allows the time series to become stationary.
 
 ```{r, include=FALSE}
 # KPSS Tests for Differenced Time Series
@@ -704,11 +669,11 @@ understand what relationship, if any is present between our economic
 factors and the resulting number of vehicles sold.
 
 The first thing we want to consider with our model is that the number of
-total vehicles sold as shown in our data analysis demonstrated seasonality
-so in order to account for that in our model, we will want to use dummy
-coding. After taking seasonality into account, we can use an ANVOA test
-to determine if the dummy variables results in a significantly different
-model.
+total vehicles sold as shown in our data analysis demonstrated
+seasonality so in order to account for that in our model, we will want
+to use dummy coding. After taking seasonality into account, we can use
+an ANVOA test to determine if the dummy variables results in a
+significantly different model.
 
 ```{r}
 total_log <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12)
@@ -729,23 +694,54 @@ our models going forwards
 
 We can now consider the time series model when regressed against each
 other. The first model we will look at is the ARDL model including total
-vehicles sold and domestic auto production. When considering ARDL models we must first attempt to calculate the number of lags which are significant for each variable. To do this, I will elect to use Akaike's Information Criterion (AIC) and Bayesian Information Criterion (BIC) and the `auto_ardl` function which uses AIC and BIC for both variables simultaneously to search for the best possible model. Information criterion are of the form $nlog(\frac{RSS}{n}) + kp, p = \# \text{ of parameters}$ With: 
+vehicles sold and domestic auto production. When considering ARDL models
+we must first attempt to calculate the number of lags which are
+significant for each variable. To do this, I will elect to use Akaike's
+Information Criterion (AIC) and Bayesian Information Criterion (BIC) and
+the `auto_ardl` function which uses AIC and BIC for both variables
+simultaneously to search for the best possible model. Information
+criterion are of the form
+$nlog(\frac{RSS}{n}) + kp, p = \# \text{ of parameters}$ With:
 
-- AIC, k = 2 $$nlog(\frac{RSS}{n}) + 2p$$ 
+-   AIC, k = 2 $$nlog(\frac{RSS}{n}) + 2p$$
 
-- BIC, k = 2 $$nlog(\frac{RSS}{n}) + log(n)p$$ 
+-   BIC, k = 2 $$nlog(\frac{RSS}{n}) + log(n)p$$
 
-BIC tends to penalize larger models more heavily so if the lags required for AIC models are quite high, we may choose to use the lags chosen through BIC to prevent over fitting.
+BIC tends to penalize larger models more heavily so if the lags required
+for AIC models are quite high, we may choose to use the lags chosen
+through BIC to prevent over fitting.
 
+After Selecting the model that will best fit our data, we can then
+perform residual analysis to ensure that our data results in the
+remaining residuals having no autocorrelation present. This can be done
+both with an inspection of residual plots and with the implmentation of
+a Breusch-Godfrey test. Ideally, we want to see that there are no
+patterns present in the residuals vs fitted plot, indicating that our
+reisudals are evenly distributed that the scale-location plot has a flat
+line, indicating constant variance, and that the points on the QQ-plot
+lie close to the line. The Residuals vs. Leverage plot help us identify
+influential points on the model.
 
-After Selecting the model that will best fit our data, we can then perform residual analysis to ensure that our data results in the remaining residuals having no autocorrelation present. This can be done both with an inspection of residual plots and with the implmentation of a Breusch-Godfrey test. Ideally, we want to see that there are no patterns present in the residuals vs fitted plot, indicating that our reisudals are evenly distributed that the scale-location plot has a flat line, indicating constant variance, and that the points on the QQ-plot lie close to the line. The Residuals vs. Leverage plot help us identify influential points on the model.
+The Breusch-Godfrey test is a statistical test that allow us to
+determine if autocorrelations are present between the residuals of our
+time series regression models. The test is conducted first by creating
+the regression then considering the sample residuals as follows
+$$u_t = \rho u_{t-1} + \dots + \rho_m u_{t-m} + \epsilon_t$$ and where
+the null hypothesis is $$H_0 : \rho_1 = \rho_2 = \dots = \rho_m = 0.$$
+If the sample size is large enough, then $nR^2 \sim \chi^2(p)$. If we do
+not reject the null hypothesis, that means that there is no serial
+correlation of order up to $p$ [@bgtest].
 
-The Breusch-Godfrey test is a statistical test that allow us to determine if autocorrelations are present between the residuals of our time series regression models. The test is conducted first by creating the regression then considering the sample residuals as follows $$u_t = \rho u_{t-1} + \dots + \rho_m u_{t-m} + \epsilon_t$$ and where the null hypothesis is $$H_0 : \rho_1 = \rho_2 = \dots = \rho_m = 0.$$ If the sample size is large enough, then $nR^2 \sim \chi^2(p)$. If we do not reject the null hypothesis, that means that there is no serial correlation of order up to $p$ [@bgtest].
-
-As a final measure of the effectiveness of our model, we will also apply the Granger causality test to see if including lags of our regressor are actually informative in terms of predicting Y [@econometricsbook]. The null and alternative hypothesis of the Granger Causality Test is as follows 
-$$H_0 = \text{ Time series X does not cause time series Y to Granger-cause itself.}$$ 
+As a final measure of the effectiveness of our model, we will also apply
+the Granger causality test to see if including lags of our regressor are
+actually informative in terms of predicting Y [@econometricsbook]. The
+null and alternative hypothesis of the Granger Causality Test is as
+follows
+$$H_0 = \text{ Time series X does not cause time series Y to Granger-cause itself.}$$
 $$H_A = \text{ Time series X causes time series Y to Granger-cause itself.}$$
-It is important to note that for a time series can Granger-cause another variable if it is helpful for forecasting the other variable [@granger]. 
+It is important to note that for a time series can Granger-cause another
+variable if it is helpful for forecasting the other variable [@granger].
+
 ```{r, include = FALSE}
 total_log <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12)
 diff_total_log <- diff(total_log)
@@ -762,7 +758,7 @@ VARselect(diff_total_log, lag.max = 24)
 VARselect(auto_prod, lag.max = 24)
 ```
 
-```{r}
+```{r, fig.cap="Analysis of ARDL (12,10) on Total New Vehicles Sold with Domestic Auto Production as Exogenuous Variable."}
 prod_total_modelvarbic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:6) + season(diff_total_log), data = total_prod_analysis)
 
 prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
@@ -778,27 +774,36 @@ forecast::checkresiduals(prod_total_model_auto)
 par(mfrow = c(2,2))
 plot(prod_total_model_auto)
 ```
-From the outputs, above showing our residual analysis, we can see that the residual values we obtain are consistent with being white noise and that all our values appear normally distributed. Additionally, the p-value we got from the Breusch-Godfrey test was 0.0879 > 0.05, therefore we can conclude that it is likely that our residuals are not serially correlated. We can then conclude that our current model is appropriate with modeling the true data. We can now test to see if adding the lags for domestic auto production were helpful in predicting the number of vehicles sold.
 
+From the outputs, above showing our residual analysis, we can see that
+the residual values we obtain are consistent with being white noise and
+that all our values appear normally distributed. Additionally, the
+p-value we got from the Breusch-Godfrey test was 0.0879 \> 0.05,
+therefore we can conclude that it is likely that our residuals are not
+serially correlated. We can then conclude that our current model is
+appropriate with modeling the true data. We can now test to see if
+adding the lags for domestic auto production were helpful in predicting
+the number of vehicles sold.
 
-
-```{r}
+```{r, include = FALSE}
 prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
 prod_total_noprod <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(diff_total_log), data = total_prod_analysis)
 
 anova(prod_total_model_auto, prod_total_noprod) 
 ```
-From the Granger-Causality test conducted above, we get a p-value < 0.05, therefore we can reject the null hypothesis and conclude that it is likely that domestic auto production Granger-causes the number of vehicles sold. For the following time series, the same process will be followed with the output being listed in a table.
+
+From the Granger-Causality test conducted above, we get a p-value \<
+0.05, therefore we can reject the null hypothesis and conclude that it
+is likely that domestic auto production Granger-causes the number of
+vehicles sold. For the following time series, the same process will be
+followed with the output being listed in a table.
 
 ```{r}
 prod_act_fit <- plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
   lines(stats::diffinv(-fitted(prod_total_model_auto), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
 ```
 
-
 ### Total Vehicles Sold and Unemployment Rate:
-
-
 
 ```{r}
 unemp <- ts(unemployment$UNRATE, start = c(1948, 1), frequency = 12)
@@ -821,19 +826,17 @@ checkresiduals(unemp_total_model_autoaic)
 checkresiduals(unemp_total_modelvarbic)
 ```
 
-
 ```{r, include = FALSE}
 unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
 
 checkresiduals(unemp_total_modelvar_bic)
 ```
 
-```{r}
+```{r, include = FALSE}
 unemp_total_nounemp <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_unemp_analysis)
 
 anova(unemp_total_modelvar_bic, unemp_total_nounemp) 
 ```
-
 
 ```{r}
 model_emp <- c("ARDL(12,1)", "ARDL(12, 14)", "ARDL(15,14)")
@@ -855,7 +858,12 @@ emp.tib %>%
              emp_granger_p = "Granger Causality P-Value")
 ```
 
-
+From the 3 models that we tried, the best one was the model that was the
+ARDL(12,1) model, meaning we used 12 lags of total auto sales and 1 lag
+of the unemployment rate. For the Granger Causality test we also
+obtained a p-value that was smaller than 0.05 which means we can
+conclude that it is likely that Unemployment Granger-causes total auto
+sales.
 
 ```{r}
 unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
@@ -869,9 +877,7 @@ unemp_act_fit <- plot(diffinv(total_unemp_analysis[,"diff_total_log"], lag = 1, 
   lines(diffinv(-fitted(unemp_total_modelvar_bic), difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
 ```
 
-
 ### Total Vehicles Sold and Gas CPI:
-
 
 ```{r}
 gas_cpi <- ts(log(fuel_prices$CUSR0000SETB01), start = c(1968, 2), frequency = 12) 
@@ -896,12 +902,11 @@ checkresiduals(gas_total_model_autobic)
 checkresiduals(gas_total_model_autoaic)
 ```
 
-```{r}
+```{r, include = FALSE}
 gas_total_nogas <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_gas_analysis)
 
 anova(gas_total_model_autobic, gas_total_nogas) 
 ```
-
 
 ```{r}
 model_gas <- c("ARDL(12,2)", "ARDL(12, 12)", "ARDL(15,12)")
@@ -914,13 +919,21 @@ gas.tib <- tibble(model_gas, selection_crit_gas, significant_p_gas, gas_adequacy
 
 gas.tib %>%
   gt::gt() %>%
-  gt::tab_header(title = "Total Vehicle Sales and Unemployment Model Analysis (Breusch-Godfrey Test)") %>%
+  gt::tab_header(title = "Total Vehicle Sales and Fuel CPI Model Analysis (Breusch-Godfrey Test)") %>%
   gt::cols_label(model_gas = "Model",
              selection_crit_gas = "Selection Criteria",
              significant_p_gas = "P-Values",
              gas_adequacy = "Model Adequacy",
              gas_granger_p = "Granger Causality P-Value")
 ```
+
+From the 3 models that we tried, the best one was the model that was
+selected by `auto_ardl` using BIC as the selection criterion. The best
+model is ARDL(12,12) model, meaning we used 12 lags of total auto sales
+and 12 lag of the gasoline CPI. For the Granger Causality test we also
+obtained a p-value that was smaller than 0.05 which means we can
+conclude that it is likely that gasoline prices Granger-causes total
+auto sales.
 
 ```{r}
 gas_act_fit <- plot(diffinv(total_gas_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
@@ -952,7 +965,7 @@ checkresiduals(rate_total_model_autoaic)
 checkresiduals(rate_total_modelvarbic)
 ```
 
-```{r}
+```{r, include = FALSE}
 rate_total_norate <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_rate_analysis)
 
 anova(rate_total_model_autobic, rate_total_norate) 
@@ -977,6 +990,14 @@ rate.tib %>%
              rate_granger_p = "Granger Causality P-Value")
 ```
 
+From the 3 models that we tried, the best one was the model that was
+selected by `auto_ardl` using BIC as the selection criterion. The best
+model is ARDL(12,0) model, meaning we used 12 lags of total auto sales
+and the current value of the gasoline CPI. For the Granger Causality
+test we obtained a p-value that $0.4755 > 0.05$ so we cannot reject the
+null hypothesis, which means that it is unlikely that bank prime rate
+loans Granger-cause total auto sales.
+
 ```{r}
 rate_act_fit <- plot(diffinv(total_rate_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
   lines(diffinv(-fitted(rate_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Bank Prime Rate and Total Vehicles Sold")
@@ -994,10 +1015,229 @@ plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference 
   lines(stats::diffinv(-fitted(prod_total_model_auto), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
 ```
 
+## Forecast Analysis
 
-### Forecasts
+Now that we have appropriate models, we can analyze the forecasts
+provided by the models. In order to do this, we will utilize thge method
+of pseudo out-of-sample forecasting which follows the following steps
+[@econometricsbook]: 1.) Divide the sample data into $s = T - P$ and $P$
+subsequent observations where the $P$ observations are used as
+pseudo-out-of-sample observations
 
+2.) Estimate the model using the first $s$ observations.
 
+3.) Compute the pseudo-forecast $\tilde{Y}_{s+1|s}$.
+
+4.) Compute the pseudo-forecast-error $\tilde{u}_{s+1} = Y_{s+1|s}$.
+
+Doing this will then allow us to determine how our models forecast and
+which models appear to have the best forecasting performance when fit to
+actual data. Since it appears that the bank prime rate loan does not
+appear to have a significant effect on the total number of cars sold, we
+will analyze the forecasts of ARDL models including the unemployment
+rate, gasoline CPI, and domestic auto production.
+
+### Unemployment Forecast
+
+```{r}
+EndOfSample <- seq(2020, 2023, 1/12)
+
+# initialize matrix forecasts
+forecasts <- matrix(nrow = 1, 
+                    ncol = length(EndOfSample))
+
+# initialize vector SER
+SER  <- numeric(length(EndOfSample))
+
+# estimation loop over end of sample dates
+for(i in 1:length(EndOfSample)) {
+
+  # estimate Uenemployment Model
+  
+  unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1), start = c(1976,1) + season(diff_total_log), end = EndOfSample[i], data = total_unemp_analysis)
+  
+  
+  SER[i] <- summary(unemp_total_modelvar_bic)$sigma
+
+  # sample data for one-period ahead forecast
+  s <- window(total_unemp_analysis, EndOfSample[i] - 13/12, EndOfSample[i])
+
+  # compute forecast
+  forecasts[i] <- coef(unemp_total_modelvar_bic) %*% c(1, s[2, 1], s[3, 1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12,1], s[13, 1], s[12, 2], s[13,2])
+}
+# compute psuedo-out-of-sample forecast errors
+POOSFCE <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts
+
+# series of pseudo-out-of-sample forecasts
+PSOSSFc <- ts(c(forecasts), 
+              start = 2020, 
+              end = 2023, 
+              frequency = 12)
+
+# plot the GDP growth time series
+plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent",
+     main = "Pseudo-Out-Of-Sample Forecasts of Difference in Auto Production") +
+
+# add the series of pseudo-out-of-sample forecasts
+lines(PSOSSFc, 
+      lwd = 2, 
+      lty = 2)  +
+
+# shade area between curves (the pseudo forecast error)
+polygon(c(time(PSOSSFc), rev(time(PSOSSFc))), 
+        c(window(diff_total_log, c(2020, 1), c(2023, 1)), rev(PSOSSFc)),
+        col = alpha("blue", alpha = 0.3),
+        border = NA) +
+
+# add a legend
+legend("bottomleft", 
+       lty = c(1, 2, 1),
+       lwd = c(2, 2, 10),
+       col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
+       legend = c("Actual GDP growth rate",
+         "Forecasted GDP growth rate",
+         "Pseudo forecast Error"))
+
+SER[1]
+sd(POOSFCE)
+```
+
+### Gas Forecast
+
+```{r}
+EndOfSample_gas <- seq(2020, 2023, 1/12)
+
+# initialize matrix forecasts
+forecasts_gas <- matrix(nrow = 1, 
+                    ncol = length(EndOfSample_gas))
+
+# initialize vector SER
+SER_gas  <- numeric(length(EndOfSample_gas))
+
+# estimation loop over end of sample dates
+for(i in 1:length(EndOfSample_gas)) {
+
+# estimate Gas Model
+  gas_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(gas_cpi, 0:12) + season(diff_total_log), start = c(1976,1), end = EndOfSample_gas[i], data = total_gas_analysis)
+  
+  
+  SER_gas[i] <- summary(gas_total_model_autobic)$sigma
+
+  # sample data for one-period ahead forecast
+  s <- window(total_gas_analysis, EndOfSample_gas[i] - 13/12, EndOfSample_gas[i])
+
+  # compute forecast
+  forecasts_gas[i] <- coef( gas_total_model_autobic) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[12, 2], s[11,2])
+}
+sd# compute psuedo-out-of-sample forecast errors
+POOSFCE_gas <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts_gas
+
+# series of pseudo-out-of-sample forecasts
+PSOSSFc_gas <- ts(c(forecasts_gas), 
+              start = 2020, 
+              end = 2023, 
+              frequency = 12)
+
+# plot the GDP growth time series
+plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent",
+     main = "Pseudo-Out-Of-Sample Forecasts of GDP Growth") +
+
+# add the series of pseudo-out-of-sample forecasts
+lines(PSOSSFc_gas, 
+      lwd = 2, 
+      lty = 2)  +
+
+# shade area between curves (the pseudo forecast error)
+polygon(c(time(PSOSSFc_gas), rev(time(PSOSSFc_gas))), 
+        c(window(diff_total_log, c(2020, 1), c(2023, 1)), rev(PSOSSFc_gas)),
+        col = alpha("blue", alpha = 0.3),
+        border = NA) 
+
+# add a legend
+legend("bottomleft", 
+       lty = c(1, 2, 1),
+       lwd = c(2, 2, 10),
+       col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
+       legend = c("Actual GDP growth rate",
+         "Forecasted GDP growth rate",
+         "Pseudo forecast Error"))
+
+SER[1]
+sd(POOSFCE)
+```
+
+### Domestic Auto Production Forecast
+
+```{r}
+EndOfSample_prod <- seq(2020, 2023, 1/12)
+
+# initialize matrix forecasts
+forecasts_prod <- matrix(nrow = 1, 
+                    ncol = length(EndOfSample_prod))
+
+# initialize vector SER
+SER_prod  <- numeric(length(EndOfSample_prod))
+
+# estimation loop over end of sample dates
+for(i in 1:length(EndOfSample_prod)) {
+
+# estimate Gas Model
+  prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), start = c(1993,1), end = EndOfSample_prod[i], data = total_prod_analysis)
+  
+  SER_prod[i] <- summary(prod_total_model_auto)$sigma
+
+  # sample data for one-period ahead forecast
+  s_prod <- window(total_prod_analysis, EndOfSample_prod[i] - 13/12, EndOfSample_prod[i])
+
+  # compute forecast
+  forecasts_prod[i] <- coef(prod_total_model_auto) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[12, 2], s[11,2])
+}
+sd# compute psuedo-out-of-sample forecast errors
+POOSFCE_prod <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts_prod
+
+# series of pseudo-out-of-sample forecasts
+PSOSSFc_prod <- ts(c(forecasts_prod), 
+              start = 2020, 
+              end = 2023, 
+              frequency = 12)
+
+# plot the GDP growth time series
+plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent",
+     main = "Pseudo-Out-Of-Sample Forecasts of GDP Growth") +
+
+# add the series of pseudo-out-of-sample forecasts
+lines(PSOSSFc_prod, 
+      lwd = 2, 
+      lty = 2)  +
+
+# shade area between curves (the pseudo forecast error)
+polygon(c(time(PSOSSFc_prod), rev(time(PSOSSFc_prod))), 
+        c(window(diff_total_log, c(2020, 1), c(2023, 1)), rev(PSOSSFc_prod)),
+        col = alpha("blue", alpha = 0.3),
+        border = NA) 
+
+# add a legend
+legend("bottomleft", 
+       lty = c(1, 2, 1),
+       lwd = c(2, 2, 10),
+       col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
+       legend = c("Actual GDP growth rate",
+         "Forecasted GDP growth rate",
+         "Pseudo forecast Error"))
+```
+## Discussion
+
+## Conclusion
+This project focused on 
 
 
 ## References

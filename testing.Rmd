@@ -843,3 +843,121 @@ plot(diffinv(total_rate_analysis[,"diff_total_log"], lag = 1, difference = 1, xi
   lines(diffinv(-fitted(rate_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
 ```
 
+### Trying Forecasts:
+
+```{r}
+library(AER)
+library(dynlm)
+library(forecast)
+library(readxl)
+library(stargazer)
+library(scales)
+library(quantmod)
+library(urca)
+library(quantmod)
+```
+
+```{r}
+USMacroSWQ <- read_xlsx("us_macro_quarterly.xlsx",
+                         sheet = 1,
+                         col_types = c("text", rep("numeric", 9)))
+
+USMacroSWQ$...1 <- as.yearqtr(USMacroSWQ$...1, format = "%Y:0%q")
+
+# adjust column names
+colnames(USMacroSWQ) <- c("Date", "GDPC96", "JAPAN_IP", "PCECTPI", 
+                          "GS10", "GS1", "TB3MS", "UNRATE", "EXUSUK", "CPIAUCSL")
+
+GDP <- xts(USMacroSWQ$GDPC96, USMacroSWQ$Date)["1960::2013"]
+
+# GDP growth series as xts object
+GDPGrowth <- xts(400 * log(GDP/Lag(GDP)))
+
+GDPGrowth_ts <- ts(GDPGrowth, 
+                  start = c(1960, 1), 
+                  end = c(2013, 4), 
+                  frequency = 4)
+
+# 3-months Treasury bills interest rate
+TB3MS <- xts(USMacroSWQ$TB3MS, USMacroSWQ$Date)["1960::2012"]
+
+# 10-years Treasury bonds interest rate
+TB10YS <- xts(USMacroSWQ$GS10, USMacroSWQ$Date)["1960::2012"]
+
+# term spread
+TSpread <- TB10YS - TB3MS
+
+TSpread_ts <- ts(TSpread, 
+                start = c(1960, 1), 
+                end = c(2012, 4), 
+                frequency = 4)
+
+# join both ts objects
+ADLdata <- ts.union(GDPGrowth_ts, TSpread_ts)
+
+```
+
+```{r}
+EndOfSample <- seq(2002.75, 2012.5, 0.25)
+
+# initialize matrix forecasts
+forecasts <- matrix(nrow = 1, 
+                    ncol = length(EndOfSample))
+
+# initialize vector SER
+SER  <- numeric(length(EndOfSample))
+
+# estimation loop over end of sample dates
+for(i in 1:length(EndOfSample)) {
+
+  # estimate ADL(2,2) model
+  m <- dynlm(GDPGrowth_ts ~ L(GDPGrowth_ts) + L(GDPGrowth_ts, 2) 
+                          + L(TSpread_ts) + L(TSpread_ts, 2), 
+                start = c(1981, 1), 
+                end = EndOfSample[i])
+  
+  SER[i] <- summary(m)$sigma
+  
+  # sample data for one-period ahead forecast
+  s <- window(ADLdata, EndOfSample[i] - 0.25, EndOfSample[i])
+  
+  # compute forecast
+  forecasts[i] <- coef(m) %*% c(1, s[1, 1], s[2, 1], s[1, 2], s[2, 2]) 
+}
+# compute psuedo-out-of-sample forecast errors
+POOSFCE <- c(window(GDPGrowth_ts, c(2003, 1), c(2012, 4))) - forecasts
+
+# series of pseudo-out-of-sample forecasts
+PSOSSFc <- ts(c(forecasts), 
+              start = 2003, 
+              end = 2012.75, 
+              frequency = 4)
+
+# plot the GDP growth time series
+plot(window(GDPGrowth_ts, c(2003, 1), c(2012, 4)),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent",
+     main = "Pseudo-Out-Of-Sample Forecasts of GDP Growth") +
+
+# add the series of pseudo-out-of-sample forecasts
+lines(PSOSSFc, 
+      lwd = 2, 
+      lty = 2) +
+
+# shade area between curves (the pseudo forecast error)
+polygon(c(time(PSOSSFc), rev(time(PSOSSFc))), 
+        c(window(GDPGrowth_ts, c(2003, 1), c(2012, 4)), rev(PSOSSFc)),
+        col = alpha("blue", alpha = 0.3),
+        border = NA) 
+
+# add a legend
+legend("bottomleft", 
+       lty = c(1, 2, 1),
+       lwd = c(2, 2, 10),
+       col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
+       legend = c("Actual GDP growth rate",
+         "Forecasted GDP growth rate",
+         "Pseudo forecast Error"))
+```
+
