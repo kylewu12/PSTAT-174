@@ -59,6 +59,37 @@ lines(fitted(model0), col = 2) +
 lines(fitted(model11), col = 4)
 ```
 
+```{r}
+lambda <- total_vehicles %>%
+  features(TOTALNSA, features = guerrero) %>%
+  pull(lambda_guerrero)
+
+total_adjusted <- total_vehicles %>%
+  autoplot(box_cox(TOTALNSA, lambda)) 
+
+total_vehicles <- total_vehicles %>%
+  dplyr::mutate(total_adjusted = box_cox(TOTALNSA, lambda))
+
+lambda2 <- auto_production %>%
+  features(DAUPNSA, features = guerrero) %>%
+  pull(lambda_guerrero)
+
+production_adjusted <- auto_production %>%
+  autoplot(box_cox(DAUPNSA, lambda2)) 
+
+auto_production <- auto_production %>%
+  dplyr::mutate(production_adjusted = box_cox(DAUPNSA, lambda2))
+
+lambda3 <- fuel_prices %>%
+  features(CUSR0000SETB01, features = guerrero) %>%
+  pull(lambda_guerrero)
+
+fuel_adjusted <- fuel_prices %>%
+  autoplot(fabletools::box_cox(CUSR0000SETB01, lambda3))
+
+fuel_prices <- fuel_prices %>%
+  dplyr::mutate(fuel_adjusted = fabletools::box_cox(CUSR0000SETB01, lambda3))
+```
 
 
 ### Total Vehicles and Bank Prime Rate Loan:
@@ -920,7 +951,8 @@ for(i in 1:length(EndOfSample)) {
   
   # sample data for one-period ahead forecast
   s <- window(ADLdata, EndOfSample[i] - 0.25, EndOfSample[i])
-  
+
+ 
   # compute forecast
   forecasts[i] <- coef(m) %*% c(1, s[1, 1], s[2, 1], s[1, 2], s[2, 2]) 
 }
@@ -932,7 +964,7 @@ PSOSSFc <- ts(c(forecasts),
               start = 2003, 
               end = 2012.75, 
               frequency = 4)
-
+ predict(m, newdata = s) 
 # plot the GDP growth time series
 plot(window(GDPGrowth_ts, c(2003, 1), c(2012, 4)),
      col = "steelblue",
@@ -959,5 +991,208 @@ legend("bottomleft",
        legend = c("Actual GDP growth rate",
          "Forecasted GDP growth rate",
          "Pseudo forecast Error"))
+
+SER[1]
+sd(POOSFCE)
+predict(unemp_total_modelvar_bic, newdata = s)
 ```
 
+```{r}
+EndOfSample <- seq(2020, 2023, 1/12)
+
+# initialize matrix forecasts
+forecasts <- matrix(nrow = 1, 
+                    ncol = length(EndOfSample))
+
+# initialize vector SER
+SER  <- numeric(length(EndOfSample))
+
+# estimation loop over end of sample dates
+for(i in 1:length(EndOfSample)) {
+
+  # estimate Uenemployment Model
+  
+  unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), start = c(1976,1), end = EndOfSample[i], data = total_unemp_analysis)
+  
+  
+  SER[i] <- summary(unemp_total_modelvar_bic)$sigma
+
+  # sample data for one-period ahead forecast
+  s <- window(total_unemp_analysis, EndOfSample[i] - 13/12, EndOfSample[i])
+
+  # compute forecast
+  forecasts[i] <- coef(unemp_total_modelvar_bic) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[12, 2], s[11,2])
+}
+sd# compute psuedo-out-of-sample forecast errors
+POOSFCE <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts
+
+# series of pseudo-out-of-sample forecasts
+PSOSSFc <- ts(c(forecasts), 
+              start = 2020, 
+              end = 2023, 
+              frequency = 12)
+
+# plot the GDP growth time series
+plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent",
+     main = "Pseudo-Out-Of-Sample Forecasts of Difference in Auto Production") +
+
+# add the series of pseudo-out-of-sample forecasts
+lines(PSOSSFc, 
+      lwd = 2, 
+      lty = 2)  +
+
+# shade area between curves (the pseudo forecast error)
+polygon(c(time(PSOSSFc), rev(time(PSOSSFc))), 
+        c(window(diff_total_log, c(2020, 1), c(2023, 1)), rev(PSOSSFc)),
+        col = alpha("blue", alpha = 0.3),
+        border = NA) +
+
+# add a legend
+legend("bottomleft", 
+       lty = c(1, 2, 1),
+       lwd = c(2, 2, 10),
+       col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
+       legend = c("Actual GDP growth rate",
+         "Forecasted GDP growth rate",
+         "Pseudo forecast Error"))
+
+SER[1]
+sd(POOSFCE)
+```
+
+### Gas Forecast
+
+```{r}
+EndOfSample_gas <- seq(2020, 2023, 1/12)
+
+# initialize matrix forecasts
+forecasts_gas <- matrix(nrow = 1, 
+                    ncol = length(EndOfSample_gas))
+
+# initialize vector SER
+SER_gas  <- numeric(length(EndOfSample_gas))
+
+# estimation loop over end of sample dates
+for(i in 1:length(EndOfSample_gas)) {
+
+# estimate Gas Model
+  gas_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(gas_cpi, 0:12) + season(diff_total_log), start = c(1976,1), end = EndOfSample_gas[i], data = total_gas_analysis)
+  
+  
+  SER_gas[i] <- summary(gas_total_model_autobic)$sigma
+
+  # sample data for one-period ahead forecast
+  s <- window(total_gas_analysis, EndOfSample_gas[i] - 13/12, EndOfSample_gas[i])
+
+  # compute forecast
+  forecasts_gas[i] <- coef( gas_total_model_autobic) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[12, 2], s[11,2])
+}
+sd# compute psuedo-out-of-sample forecast errors
+POOSFCE_gas <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts_gas
+
+# series of pseudo-out-of-sample forecasts
+PSOSSFc_gas <- ts(c(forecasts_gas), 
+              start = 2020, 
+              end = 2023, 
+              frequency = 12)
+
+# plot the GDP growth time series
+plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent",
+     main = "Pseudo-Out-Of-Sample Forecasts of GDP Growth") +
+
+# add the series of pseudo-out-of-sample forecasts
+lines(PSOSSFc_gas, 
+      lwd = 2, 
+      lty = 2)  +
+
+# shade area between curves (the pseudo forecast error)
+polygon(c(time(PSOSSFc_gas), rev(time(PSOSSFc_gas))), 
+        c(window(diff_total_log, c(2020, 1), c(2023, 1)), rev(PSOSSFc_gas)),
+        col = alpha("blue", alpha = 0.3),
+        border = NA) 
+
+# add a legend
+legend("bottomleft", 
+       lty = c(1, 2, 1),
+       lwd = c(2, 2, 10),
+       col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
+       legend = c("Actual GDP growth rate",
+         "Forecasted GDP growth rate",
+         "Pseudo forecast Error"))
+
+SER[1]
+sd(POOSFCE)
+```
+
+### Domestic Auto Production Forecast
+
+```{r}
+EndOfSample_prod <- seq(2020, 2023, 1/12)
+
+# initialize matrix forecasts
+forecasts_prod <- matrix(nrow = 1, 
+                    ncol = length(EndOfSample_prod))
+
+# initialize vector SER
+SER_prod  <- numeric(length(EndOfSample_prod))
+
+# estimation loop over end of sample dates
+for(i in 1:length(EndOfSample_prod)) {
+
+# estimate Gas Model
+  prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), start = c(1993,1), end = EndOfSample_prod[i], data = total_prod_analysis)
+  
+  SER_prod[i] <- summary(prod_total_model_auto)$sigma
+
+  # sample data for one-period ahead forecast
+  s_prod <- window(total_prod_analysis, EndOfSample_prod[i] - 13/12, EndOfSample_prod[i])
+
+  # compute forecast
+  forecasts_prod[i] <- coef(prod_total_model_auto) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[12, 2], s[11,2])
+}
+sd# compute psuedo-out-of-sample forecast errors
+POOSFCE_prod <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts_prod
+
+# series of pseudo-out-of-sample forecasts
+PSOSSFc_prod <- ts(c(forecasts_prod), 
+              start = 2020, 
+              end = 2023, 
+              frequency = 12)
+
+# plot the GDP growth time series
+plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent",
+     main = "Pseudo-Out-Of-Sample Forecasts of GDP Growth") +
+
+# add the series of pseudo-out-of-sample forecasts
+lines(PSOSSFc_prod, 
+      lwd = 2, 
+      lty = 2)  +
+
+# shade area between curves (the pseudo forecast error)
+polygon(c(time(PSOSSFc_prod), rev(time(PSOSSFc_prod))), 
+        c(window(diff_total_log, c(2020, 1), c(2023, 1)), rev(PSOSSFc_prod)),
+        col = alpha("blue", alpha = 0.3),
+        border = NA) 
+
+# add a legend
+legend("bottomleft", 
+       lty = c(1, 2, 1),
+       lwd = c(2, 2, 10),
+       col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
+       legend = c("Actual GDP growth rate",
+         "Forecasted GDP growth rate",
+         "Pseudo forecast Error"))
+```
+
+## Conclusion
+
+## References

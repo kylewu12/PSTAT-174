@@ -1,7 +1,7 @@
 ---
 title: "The Effects of Economic Factors on Total Vehicles Sold in the USA"
 author: "Kyle Wu"
-date: "2023-01-30"
+date: "2023-03-13"
 bibliography: bib.bib
 output:
   pdf_document: default
@@ -38,6 +38,7 @@ library(stargazer)
 library(scales)
 library(ARDL)
 library(vars)
+library(Metrics)
 ```
 
 ```{r, show_col_types = FALSE, include = FALSE}
@@ -800,7 +801,7 @@ followed with the output being listed in a table.
 
 ```{r}
 prod_act_fit <- plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
-  lines(stats::diffinv(-fitted(prod_total_model_auto), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
+  lines(stats::diffinv(fitted(prod_total_model_auto, newdata = s), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
 ```
 
 ### Total Vehicles Sold and Unemployment Rate:
@@ -937,7 +938,7 @@ auto sales.
 
 ```{r}
 gas_act_fit <- plot(diffinv(total_gas_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(gas_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Gas and Total Vehicles Sold")
+  lines(diffinv(fitted(gas_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Gas and Total Vehicles Sold")
 ```
 
 ### Total Vehicles Sold and Bank Prime Rate Loan:
@@ -1000,7 +1001,7 @@ loans Granger-cause total auto sales.
 
 ```{r}
 rate_act_fit <- plot(diffinv(total_rate_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(rate_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Bank Prime Rate and Total Vehicles Sold")
+  lines(diffinv(fitted(rate_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Bank Prime Rate and Total Vehicles Sold")
 ```
 
 ```{r}
@@ -1054,16 +1055,16 @@ for(i in 1:length(EndOfSample)) {
 
   # estimate Uenemployment Model
   
-  unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1), start = c(1976,1) + season(diff_total_log), end = EndOfSample[i], data = total_unemp_analysis)
+  unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1), start = c(1976,1), end = EndOfSample[i], data = total_unemp_analysis)
   
   
   SER[i] <- summary(unemp_total_modelvar_bic)$sigma
 
   # sample data for one-period ahead forecast
-  s <- window(total_unemp_analysis, EndOfSample[i] - 13/12, EndOfSample[i])
+  s <- window(total_unemp_analysis, EndOfSample[i] - 12/12, EndOfSample[i])
 
   # compute forecast
-  forecasts[i] <- coef(unemp_total_modelvar_bic) %*% c(1, s[2, 1], s[3, 1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12,1], s[13, 1], s[12, 2], s[13,2])
+  forecasts[i] <- coef(unemp_total_modelvar_bic) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[12, 2], s[13,2])
 }
 # compute psuedo-out-of-sample forecast errors
 POOSFCE <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts
@@ -1079,7 +1080,7 @@ plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts of Difference in Auto Production") +
+     main = "Pseudo-Out-Of-Sample Forecasts Percent Change In Total New Vehicles Sold") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc, 
@@ -1090,19 +1091,20 @@ lines(PSOSSFc,
 polygon(c(time(PSOSSFc), rev(time(PSOSSFc))), 
         c(window(diff_total_log, c(2020, 1), c(2023, 1)), rev(PSOSSFc)),
         col = alpha("blue", alpha = 0.3),
-        border = NA) +
+        border = NA) 
 
 # add a legend
 legend("bottomleft", 
        lty = c(1, 2, 1),
        lwd = c(2, 2, 10),
        col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
-       legend = c("Actual GDP growth rate",
-         "Forecasted GDP growth rate",
+       legend = c("Actual Total New Vehciles Sold",
+         "Forecasted Total New Vehicles Sold",
          "Pseudo forecast Error"))
 
 SER[1]
 sd(POOSFCE)
+Metrics::rmse(window(diff_total_log, c(2020, 1), c(2023, 1)), PSOSSFc)
 ```
 
 ### Gas Forecast
@@ -1121,7 +1123,7 @@ SER_gas  <- numeric(length(EndOfSample_gas))
 for(i in 1:length(EndOfSample_gas)) {
 
 # estimate Gas Model
-  gas_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(gas_cpi, 0:12) + season(diff_total_log), start = c(1976,1), end = EndOfSample_gas[i], data = total_gas_analysis)
+  gas_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(gas_cpi, 0:12), start = c(1976,1), end = EndOfSample_gas[i], data = total_gas_analysis)
   
   
   SER_gas[i] <- summary(gas_total_model_autobic)$sigma
@@ -1130,9 +1132,9 @@ for(i in 1:length(EndOfSample_gas)) {
   s <- window(total_gas_analysis, EndOfSample_gas[i] - 13/12, EndOfSample_gas[i])
 
   # compute forecast
-  forecasts_gas[i] <- coef( gas_total_model_autobic) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[12, 2], s[11,2])
+  forecasts_gas[i] <- coef( gas_total_model_autobic) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[1, 2], s[2, 2], s[3,2], s[4,2], s[5,2], s[6,2], s[7,2], s[8,2], s[9,2], s[10,2], s[11,2], s[12, 2], s[13,2])
 }
-sd# compute psuedo-out-of-sample forecast errors
+# compute psuedo-out-of-sample forecast errors
 POOSFCE_gas <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts_gas
 
 # series of pseudo-out-of-sample forecasts
@@ -1146,7 +1148,7 @@ plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts of GDP Growth") +
+     main = "Pseudo-Out-Of-Sample Forecasts Percent Change In Total New Vehicles Sold") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc_gas, 
@@ -1168,8 +1170,9 @@ legend("bottomleft",
          "Forecasted GDP growth rate",
          "Pseudo forecast Error"))
 
-SER[1]
-sd(POOSFCE)
+SER_gas[1]
+sd(POOSFCE_gas)
+Metrics::rmse(window(diff_total_log, c(2020, 1), c(2023, 1)), PSOSSFc_gas)
 ```
 
 ### Domestic Auto Production Forecast
@@ -1188,17 +1191,17 @@ SER_prod  <- numeric(length(EndOfSample_prod))
 for(i in 1:length(EndOfSample_prod)) {
 
 # estimate Gas Model
-  prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), start = c(1993,1), end = EndOfSample_prod[i], data = total_prod_analysis)
+  prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10), start = c(1993,1), end = EndOfSample_prod[i], data = total_prod_analysis)
   
   SER_prod[i] <- summary(prod_total_model_auto)$sigma
 
   # sample data for one-period ahead forecast
-  s_prod <- window(total_prod_analysis, EndOfSample_prod[i] - 13/12, EndOfSample_prod[i])
+  s <- window(total_prod_analysis, EndOfSample_prod[i] - 13/12, EndOfSample_prod[i])
 
   # compute forecast
-  forecasts_prod[i] <- coef(prod_total_model_auto) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[12, 2], s[11,2])
+  forecasts_prod[i] <- coef(prod_total_model_auto) %*% c(1, s[1, 1], s[2, 1], s[3,1], s[4,1], s[5,1], s[6,1], s[7,1], s[8,1], s[9,1], s[10,1], s[11,1], s[12, 1], s[3,2], s[4,2], s[5,2], s[6,2], s[7,2], s[8,2], s[9,2], s[10,2], s[11,2], s[12, 2], s[13,2])
 }
-sd# compute psuedo-out-of-sample forecast errors
+# compute psuedo-out-of-sample forecast errors
 POOSFCE_prod <- c(window(diff_total_log, c(2020, 1), c(2023, 1))) - forecasts_prod
 
 # series of pseudo-out-of-sample forecasts
@@ -1212,7 +1215,7 @@ plot(window(diff_total_log, c(2020, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts of GDP Growth") +
+     main = "Pseudo-Out-Of-Sample Forecasts Percent Change In Total New Vehicles Sold") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc_prod, 
@@ -1233,8 +1236,38 @@ legend("bottomleft",
        legend = c("Actual GDP growth rate",
          "Forecasted GDP growth rate",
          "Pseudo forecast Error"))
+
+SER_prod[1]
+sd(POOSFCE_prod)
+Metrics::rmse(window(diff_total_log, c(2020, 1), c(2023, 1)), PSOSSFc_prod)
 ```
+
 ## Discussion
+
+This case study focused on attempting to model total new vehicle sales through the use of Autoregressive Distributed Lag (ARDL) models. We attempted to fit models that included the unemployment rate, the gasoline CPI, domestic auto production, and the bank prime rate loans. 
+
+After fitting our models, we found the different models that would fit best for our different ARDL models. We then attempted to find which ARDL models were most important in determining the total number of new vehicles that were sold. From the variables that we used, we then calculated if the exogenous variables that we added as part of the ARDL model allowed us to better estimate the true number of vehicles sold through the use of Granger-causality tests. 
+
+It was determined that the bank prime rate loans had no statistical significance in allowing us to better predict the total number of vehicles sold. This could potentially make sense because if we look at how bank prime rate loans have changed over time, we see that they reached a peak in the 80s before slowly decreasing over time; however, if we look at time series of total new vehicles we see that there have been cyclical components but that in general the number of new vehicles sold has remained at a relatively stable level when compared to some of the other time series.
+
+It was therefore determined that the ARDL models where the exogenous variables did make a difference in allowing us to predict total number of new vehicles sold were the unemployment rate, gasoline CPI and domestic auto production. The actual regression model used for the models that were significant is located in the appendix. For unemployment we see that there is a negative relationship, meaning that as unemployment increases, we would expect to predict that the total number of new vehicles sold decreases, which would make sense since when unemployment increaes, the population as a whole would likely have less purchasing power, leading to fewer cars being bought. 
+
+Interestingly, for gasoline CPI we have 6 lags with positive values, which would seem to indicate that about half the time, an increase in gas price leads to an increase in new vehicles sold. This is not straightforward but may make sense if we consider that in the last few years, even as gas prices have gone up, the purchasing of new car has remained high, which may indicate that cars may be an inelastic good, meaning that despite the ricing prices of gasoline, a complement, people still have a need for purchasing vehicles. 
+
+For domestic auto production the data is as expected, with all values being positive, which would indicaet that as more cars are produced domestically, more total new cars would be sold. This relationship could go both ways in that more cars being produced could lead to more total new vehicles being sold and that consumers buying more cars may encourage auto makers to sell more cars.
+
+After analyzing the data, the ARDL models which appeared to have effects on the total new vehicles sold were analyzed through pseudo-out-of-sample forecasts where we found that it appeared that the model that appeared to have the best forecasting performance was...
+
+
+```{r}
+prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
+unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
+gas_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(gas_cpi, 0:12) + season(diff_total_log), data = total_gas_analysis)
+
+summary(unemp_total_modelvar_bic)
+summary(gas_total_model_autobic)
+summary(prod_total_model_auto)
+```
 
 ## Conclusion
 This project focused on 
