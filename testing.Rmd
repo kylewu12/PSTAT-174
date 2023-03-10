@@ -1193,6 +1193,48 @@ legend("bottomleft",
          "Pseudo forecast Error"))
 ```
 
+
+```{r}
+fit_basic1 <- auto.arima(window(log(auto_production$DAUPNSA)))
+checkresiduals(fit_basic1)
+forecast_1 <- forecast(fit_basic1, h = 12)
+```
+
+```{r}
+fit_basic2 <- auto.arima(unemployment$UNRATE)
+checkresiduals(fit_basic2)
+forecast_2 <- forecast(fit_basic2, h = 12)
+```
+
+```{r}
+fit_basic3 <- auto.arima(log(fuel_prices$CUSR0000SETB01))
+checkresiduals(fit_basic3)
+forecast_3 <- forecast(fit_basic3, h = 20)
+```
+
+
+## Forecast Fit forecasts
+
+```{r}
+# Auto production last year
+total_prod_analysis[1:347,2]
+
+fit_forecast1 <- auto.arima(total_prod_analysis[1:347,2]).# Date starts January
+
+fit_forecast11 <- auto.arima(diff(log(auto_production$DAUPNSA))[1:347])
+checkresiduals(fit_forecast11)
+fit_forecast_1 <- forecast(fit_forecast11, n = 12)
+```
+
+```{r}
+# Unemployment last year
+```
+
+```{r}
+# Fuel Prices Last Year
+```
+
+
 ## Conclusion
 
 ## References
