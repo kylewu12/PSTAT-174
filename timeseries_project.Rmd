@@ -154,7 +154,7 @@ other reasons led to a chip shortage that has in many ways created
 problems for the world economy [@jpm2022]. Since cars now heavily rely
 on computers to work, this resulted in many manufacturers around the
 world decreasing production projections, which decreased vehicle
-production, and partially led to the rapid rise in vehicle prices.
+production, and partially led to the rapid rise in vehicle prices and sales patterns that broke from previous market trends.
 However, if we look at production figures, we can see that the domestic
 production of cars had been following a decreasing trend since the 90s,
 so researchers at Federal Reserve Economic Data (FRED) found that it is
@@ -165,11 +165,8 @@ also indicated that despite the increase in population since the mid
 aver the past few decades [@FRED2021].
 
 Looking at the data offered by the Federal Reserve could allow us to
-answer even more questions regarding the American auto market. For
-example, we could try to understand if it is likely that american
-automakers would have decreased their production numbers even without
-the disruptions brought about by COVID or if COVID led to new trends. If
-we take into account other economic factors, such as interest rate or
+answer even more questions regarding the American auto market. If
+we take into account other economic factors, such as bank prime rate loans or
 gas prices, we can then try to measure what economic factors may most
 affect the sale of motor vehicles. Using the data we obtained and after
 determining factors that determine automotive sales, we can then create a
@@ -179,7 +176,7 @@ the question of whether it is likely new vehicles will continue facing
 inflation or if it might become stable in the near future. Besides
 looking at the various factors individually, we can also look at the
 auto market holistically, asking what the future may be in terms of
-vehicle purchases in the United States and is it likely that vehicle
+vehicle purchases in the United States and whether it is likely that vehicle
 purchases return to pre-COVID levels. For the average consumer, the
 questions that will be answered will allow them to perhaps better plan
 for the expenditure that comes with the purchase of a new car.
@@ -196,9 +193,9 @@ us to broadly gain an understanding not only of factors affecting
 vehicle sales, but also of the health of the American economy due to the
 fact that vehicles are often the second most expensive possessions of
 individuals, second only to homes. Increased purchasing of vehicles
-would indicate that the American has been healthy and following a
+would indicate that the American economy has been healthy and following a
 positive trend, whereas decreased vehicle purchases may indicate that
-the economy had been following a general downwards trajectory.
+the economy had been following a general undesirable trajectory.
 
 ## Analysis of Empirical Properties
 
@@ -809,16 +806,7 @@ is likely that domestic auto production Granger-causes the number of
 vehicles sold. For the following time series, the same process will be
 followed with the output being listed in a table.
 
-```{r}
-prod_total_model_auto2 <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 1:10) + season(diff_total_log), data = total_prod_analysis)
-ardl_test2 <- ardl(diff_total_log ~ auto_prod, data = total_prod_analysis, order = c(12, 10))
 
-prod_act_fit <- plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
-  lines(stats::diffinv(fitted(prod_total_model_auto, newdata = s), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
-
-prod_act_fit <- plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
-  lines(stats::diffinv(-fitted(ardl_test2), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
-```
 
 ### Total Vehicles Sold and Unemployment Rate:
 
@@ -882,25 +870,13 @@ obtained a p-value that was smaller than 0.05 which means we can
 conclude that it is likely that Unemployment Granger-causes total auto
 sales.
 
-```{r}
+```{r, include = FALSE}
 unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
 unemp_total_nounemp <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_unemp_analysis)
 
 anova(unemp_total_modelvar_bic, unemp_total_nounemp) 
 ```
 
-```{r}
-ardl_test <- ardl(diff_total_log ~ unemp, data = total_unemp_analysis, order = c(12, 1))
-
-checkresiduals(ardl_test)
-
-unemp_act_fit <- plot(diffinv(total_unemp_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(unemp_total_modelvar_bic), difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
-
-
-unemp_act_fit <- plot(diffinv(total_unemp_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(ardl_test), difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
-```
 
 ### Total Vehicles Sold and Gas CPI:
 
@@ -960,11 +936,6 @@ obtained a p-value that was smaller than 0.05 which means we can
 conclude that it is likely that gasoline prices Granger-causes total
 auto sales.
 
-```{r}
-gas_act_fit <- plot(diffinv(total_gas_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(gas_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Gas and Total Vehicles Sold")
-```
-
 ### Total Vehicles Sold and Bank Prime Rate Loan:
 
 ```{r}
@@ -1023,22 +994,7 @@ test we obtained a p-value that $0.4755 > 0.05$ so we cannot reject the
 null hypothesis, which means that it is unlikely that bank prime rate
 loans Granger-cause total auto sales.
 
-```{r}
-rate_act_fit <- plot(diffinv(total_rate_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(rate_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Bank Prime Rate and Total Vehicles Sold")
-```
 
-```{r}
-par(mfrow = c(2,2)) 
-plot(diffinv(total_rate_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(rate_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Bank Prime Rate and Total Vehicles Sold")
-plot(diffinv(total_unemp_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(unemp_total_modelvar_bic), difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
-plot(diffinv(total_gas_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
-  lines(diffinv(-fitted(gas_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Gas and Total Vehicles Sold")
-plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
-  lines(stats::diffinv(-fitted(prod_total_model_auto), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
-```
 
 ## Forecast Analysis
 
@@ -1082,7 +1038,7 @@ for(i in 1:length(EndOfSample)) {
 
   # estimate Uenemployment Model
   
-  unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), start = c(1976,1), end = EndOfSample[i], data = total_unemp_analysis)
+unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), start = c(1976,1), end = EndOfSample[i], data = total_unemp_analysis)
   
   
   SER[i] <- summary(unemp_total_modelvar_bic)$sigma
@@ -1100,7 +1056,7 @@ season_add_unemp <- rep(unemp_season, times = 3)[1:25]
 forecasts <- forecasts + season_add_unemp
 
 # compute psuedo-out-of-sample forecast errors
-POOSFCE <- c(window(diff_total_log, c(2021, 1), c(2023, 1))) - forecasts
+POOSFCE <- c(window(diff_total_log, start = c(2021, 1), end = c(2023, 1))) - forecasts
 
 # series of pseudo-out-of-sample forecasts
 PSOSSFc <- ts(c(forecasts), 
@@ -1108,12 +1064,12 @@ PSOSSFc <- ts(c(forecasts),
               end = 2023, 
               frequency = 12)
 
-# plot the GDP growth time series
+# plot the total new vehicle sales percent change time series
 plot(window(diff_total_log, c(2021, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts Percent Change In Total New Vehicles Sold") +
+     main = "Pseudo-Out-Of-Sample Forecasts Percent Change") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc, 
@@ -1124,7 +1080,7 @@ lines(PSOSSFc,
 polygon(c(time(PSOSSFc), rev(time(PSOSSFc))), 
         c(window(diff_total_log, c(2021, 1), c(2023, 1)), rev(PSOSSFc)),
         col = alpha("blue", alpha = 0.3),
-        border = NA) +
+        border = NA) 
 
 # add a legend
 legend("bottomleft", 
@@ -1179,12 +1135,12 @@ PSOSSFc_gas <- ts(c(forecasts_gas),
               end = 2023, 
               frequency = 12)
 
-# plot the GDP growth time series
+# plot the total new vehicle sales percent change time series
 plot(window(diff_total_log, c(2021, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts Percent Change In Total New Vehicles Sold") +
+     main = "Pseudo-Out-Of-Sample Forecasts Percent Change") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc_gas, 
@@ -1205,10 +1161,6 @@ legend("bottomleft",
        legend = c("Actual GDP growth rate",
          "Forecasted GDP growth rate",
          "Pseudo forecast Error"))
-
-SER_gas[1]
-sd(POOSFCE_gas)
-
 ```
 
 ### Domestic Auto Production Forecast
@@ -1253,12 +1205,12 @@ PSOSSFc_prod <- ts(c(forecasts_prod),
               end = 2023, 
               frequency = 12)
 
-# plot the GDP growth time series
+# plot the total new vehicle sales percent change time series
 plot(window(diff_total_log, c(2021, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts Percent Change In Total New Vehicles Sold") +
+     main = "Pseudo-Out-Of-Sample Forecasts Percent Change") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc_prod, 
@@ -1279,10 +1231,6 @@ legend("bottomleft",
        legend = c("Actual GDP growth rate",
          "Forecasted GDP growth rate",
          "Pseudo forecast Error"))
-
-SER_prod[1]
-sd(POOSFCE_prod)
-Metrics::rmse(window(diff_total_log, c(2021, 1), c(2023, 1)), PSOSSFc_prod)
 ```
 ```{r}
 unemployment_rmse <- Metrics::rmse(window(diff_total_log, c(2021, 1), c(2023, 1)), PSOSSFc)
@@ -1303,8 +1251,58 @@ rmse.tib %>%
 
 ### Future Forecasts
 
-```{r}
+```{r, eval = FALSE}
+prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), start = c(1993,1), end = EndOfSample_prod[i], data = total_prod_analysis)
 
+# Auto Production Future Forecast
+fit_basic1 <- auto.arima(diff(log(auto_production$DAUPNSA)))
+checkresiduals(fit_basic1)
+forecast_1 <- forecast(fit_basic1, h = 12) 
+prod_forecast <- c(0.067356811, 0.021137651, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529)
+
+
+prod_forecast_ts <- ts(prod_forecast, start = c(2023, 1), frequency = 12)
+prod_combined_ts <- ts(c(auto_prod, prod_forecast), start = c(1993, 1), frequency = 12)
+
+
+auto_prod <- ts(log(auto_production$DAUPNSA), start = c(1993, 1), frequency = 12)
+auto_prod <- diff(auto_prod)
+
+for(i in 1:length(EndOfSample_gas)) {
+  h[i] = coef(prod_total_model_auto) %*% forecasts_prod[i] <- coef(prod_total_model_auto)[1:24] %*% c(1, s[12, 1], s[11, 1], s[10,1], s[9,1], s[8,1], s[7,1], s[6,1], s[5,1], s[4,1], s[3,1], s[2,1], s[1, 1], s[13,2], s[12,2], s[11,2], s[10,2], s[9,2], s[8,2], s[7,2], s[6,2], s[5,2], s[4, 2], s[3,2])
+}
+
+h1 <- coef()
+```
+
+
+```{r, eval = FALSE}
+
+# Gasoline CPI Future Forecast
+fit_basic3 <- auto.arima(diff(log(fuel_prices$CUSR0000SETB01)))
+checkresiduals(fit_basic3)
+forecast_3 <- forecast(fit_basic3, h = 12)
+gas_forecast <- c(-0.035613966, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241)
+
+gas_cpi <- ts(log(fuel_prices$CUSR0000SETB01), start = c(1968, 2), frequency = 12) 
+gas_cpi <- diff(gas_cpi)
+
+gas_combined_ts <- ts(c(gas_cpi, gas_forecast), start = c(1968, 2), frequency = 12)
+```
+
+
+```{r, eval = FALSE}
+# Unemployment Future Forecast
+fit_basic2 <- auto.arima(diff(unemployment$UNRATE))
+checkresiduals(fit_basic2)
+forecast_2 <- forecast(fit_basic2, h = 12)
+
+unemp <- ts(unemployment$UNRATE, start = c(1948, 1), frequency = 12)
+unemp <- diff(unemp)
+
+unemp_forecast <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+unemp_combined_ts <- ts(c(unemp, unemp_forecast), start = c(1948, 1), frequency = 12)
 ```
 
 
@@ -1322,12 +1320,20 @@ Interestingly, for gasoline CPI we have 6 lags with positive values, which would
 
 For domestic auto production the data is as expected, with all values being positive, which would indicate that as more cars are produced domestically, more total new cars would be sold. This relationship could go both ways in that more cars being produced could lead to more total new vehicles being sold and that consumers buying more cars may encourage auto makers to produce more cars.
 
-After analyzing the data, the ARDL models which appeared to have effects on the total new vehicles sold were analyzed through pseudo-out-of-sample forecasts where we found that it appeared that the model that appeared to have the best forecasting performance was...
+After analyzing the data, the ARDL models which appeared to have effects on the total new vehicles sold were analyzed through pseudo-out-of-sample forecasts where we found that it appeared that the model that appeared to have the best forecasting performance was the model that used unemployment as its exogenous variable. This intuitively makes sense since it appears logical that as more people became unemployed, there would also be less people purchasing new cars. It is worth mentioning, however, that our other models also appeared to have relatively good forecasting ability.
 
 
 ## Conclusion
 
-This project focused on 
+The automobile is in many ways synonymous with the American lifestyle and this case study aimed to better understand some of the economic forces behind it. We looked at the the unemployment rate, gasoline CPI, domestic auto production, and bank prime rate loans as economic factors that could potentially affect the number of total new vehicles sold. We ultimately found that bank prime rate loans were largely uncorrelated with the number of new vehicles sold but that our other factors demonstrated correlation with total new vehicles sold.
+
+In the process of finding these correlations, we were able to make use if ARDL models to model the relationship between the our exogenous variables and total new vehicles sold, and these relationships can be seen in the appendix. We then utilized pseudo-out-of-sample forecasts to evaluate our models as a way to confirm their efficacy and was able to find that unemployment appeared to be the best of our selected exogenous variables when used in an ARDL model. 
+
+Going forwards, this case study provides us with many avenues through which we could continue to better understand the American automobile market. One of the most apparent ways we could further our analysis would be by looking at other economic variables that may affect total number of new vehicles sold such as the amount of disposable income available throughout the country, the general CPI, or by looking at the price of new cars. As mentioned earlier in the discussion, having the same amount of lags of gasoline CPI indicating a positive and negative relationship between gasoline CPI and new vehicles sold may indicate the inelasticity of total vehicle purchases and analyzing the price of vehicles in conjunction with total vehicles sold would allow us to truly test this hypothesis.
+
+Furthermore, since vehicles are often the second most expensive item a family may purchase, we could try to analyze the relationship between vehicles sold and house purchases and see if increases in vehicle sales may preempt a strong housing market.
+
+Ultimately, this case study allowed us to better understand the forces driving Americans to purchase vehicles and its relation to other economic forces.
 
 
 ## Apendix
@@ -1335,11 +1341,29 @@ This project focused on
 prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
 unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
 gas_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(gas_cpi, 0:12) + season(diff_total_log), data = total_gas_analysis)
+```
 
 
+### Unemployment ARDL Summary
+```{r}
 summary(unemp_total_modelvar_bic)
+```
+
+
+### Gasoline CPI ARDL Summary
+```{r}
 summary(gas_total_model_autobic)
+```
+
+
+### Domestic Auto Production ARDL Summary
+```{r}
 summary(prod_total_model_auto)
+```
+
+
+
+
 ```
 
 ## References
