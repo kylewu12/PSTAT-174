@@ -135,7 +135,7 @@ combined <- as_tsibble(combined) %>%
 In the United States, one of the main modes of transportation is the
 automobile. To the average consumer, it has seemed that the new car has
 been slowly getting out of reach, with the average price of a new
-vehicle currently sitting around \$49,500 [@carprice2023]. Despite the
+vehicle currently sitting around $49,500 [@carprice2023]. Despite the
 high prices of vehicles for many Americans a car is not only a luxury,
 but a necessity, and many citizens find themselves shelling out a large
 portion of their paychecks for their transportation. Even when
@@ -149,11 +149,10 @@ understand what trends the American auto market may be facing going
 forwards and what factors influence automotive sales. Past research into
 the American auto market have been vital to our understanding of the
 forces driving the auto market. For example, it is well known that the
-chip shortage that occurred as a result of COVID-19 shutdowns, among
-other reasons led to a chip shortage that has in many ways created
+chip shortage that occurred as a result of COVID-19 shutdowns led to supply chain issues that in many ways created
 problems for the world economy [@jpm2022]. Since cars now heavily rely
 on computers to work, this resulted in many manufacturers around the
-world decreasing production projections, which decreased vehicle
+world decreasing vehicle
 production, and partially led to the rapid rise in vehicle prices and sales patterns that broke from previous market trends.
 However, if we look at production figures, we can see that the domestic
 production of cars had been following a decreasing trend since the 90s,
@@ -170,23 +169,21 @@ we take into account other economic factors, such as bank prime rate loans or
 gas prices, we can then try to measure what economic factors may most
 affect the sale of motor vehicles. Using the data we obtained and after
 determining factors that determine automotive sales, we can then create a
-forecast to determine how each factor relating to the automotive
-industry will change in the future. For example, we can try to answer
-the question of whether it is likely new vehicles will continue facing
-inflation or if it might become stable in the near future. Besides
+model to determine how each factor relating to the automotive
+industry may affect total new vehicle sales. Besides
 looking at the various factors individually, we can also look at the
 auto market holistically, asking what the future may be in terms of
 vehicle purchases in the United States and whether it is likely that vehicle
 purchases return to pre-COVID levels. For the average consumer, the
 questions that will be answered will allow them to perhaps better plan
-for the expenditure that comes with the purchase of a new car.
+for the expenditure that comes with the purchase of a new car or to understand what economic factors may affect how they will be buying their new vehicles.
 
 Furthermore, studying time series data of vehicles can allow us to
 better understand how or if certain policy changes may change vehicle
 prices or purchasing behavior. For example, we could potentially find
 time periods with varying federal funds rates, which influence bank
 prime loan rates to see if this changed the overall behavior of
-consumers.
+consumers. The information we find about other factors such as domestic auto production could then also allow us to understand the types of actions the government could take in case of an economic downturn to try to support the auto market.
 
 Gathering all this data about the American auto market would then allow
 us to broadly gain an understanding not only of factors affecting
@@ -197,16 +194,18 @@ would indicate that the American economy has been healthy and following a
 positive trend, whereas decreased vehicle purchases may indicate that
 the economy had been following a general undesirable trajectory.
 
+Throughout this case study, we will aim to find the relationship between total new vehicles sold and its relation with unemployment rates, bank prime rate loans, domestic auto production, and gasoline CPI. We will do this through the use of time series linear models which we will then perform forecast analysis on to determine how well they fit the actual data.
+
 ## Analysis of Empirical Properties
 
 In all cases, the data I selected came from the Federal Reserve Economic
-Data database and all variables selected were recorded on a monthly
-basis and input into a format that was very neat and effective for time
-series analysis. The variables I have chosen are Total number of
+Data (FRED) database and all variables selected were recorded on a monthly
+basis and input into a format that was very neat and simple to use for time
+series analysis. As mentioned in the introductionm the variables I have chosen are the Total number of new
 vehicles sold, new vehicle consumer price index, domestic auto
 production, fuel price index, and the bank prime rate. In this study, I
 will use total number of vehicles sold as the gauge of the american auto
-market, and the other variables will be used as predictors.
+market, and the other variables will be used as the exogenous predictors.
 
 Since we will be creating time series regression models, we first want
 to get an overview of the data to see how each variable relates to the
@@ -221,15 +220,19 @@ form of statistical significance with the exception of the correlation
 between the gas price index and the bank prime rate loans. This would
 make sense because there really shouldn't be a reason why there should
 be a significant correlation between the variables especially
-considering that bank prime rate loans are assocaited with larger
+considering that bank prime rate loans are associated with larger
 purchases such as for cars or houses.
 
 We will now analyze the variables individually before talking about all
-the factors as they may relate to projecting future car sales.
+the factors as they may relate to car sales.
 
 The first variable we will look at is total vehicle sales.
 
 ```{r, fig.cap= "Total New Vehicle Sales time series plot (Top) and Total Vehicle Sales seasonal subseries plot (Bottom)."}
+# Data breakdown for total cars sold
+
+average_total <- mean(total_vehicles$TOTALNSA) 
+
 tvsubseries <- total_vehicles %>%
   gg_subseries(TOTALNSA) + 
   labs(y = "Thousands of Vehicles Sold", title = "Total Vehicle Sales")
@@ -248,7 +251,7 @@ grid.arrange(total_vehicles_ts, total_sub)
 Our data for vehicles sold starts from January 1976, is recorded
 monthly, and does not have any missing values.The data was collected
 from the U.S. Bureau of Economic Analysis, which has formatted the data
-in a easily usable database. From the subseries plot, we see that the
+in a easily usable database. The average number of new cars sold over the timer period covered by the data is 1.26 million cars a month. From the subseries plot, we see that the
 data definitely follows a seasonal pattern, as demonstrated by the
 fluctuating mean lines based on the month of the year. Additionally,
 from the scalloped shape of the plot, we can see that the data follows a
@@ -256,12 +259,14 @@ seasonal trend of peaks and troughs every twelve months. Logically this
 makes sense, as it is well known that vehicle sales usually increase
 during the summer and tend to decrease during the winter. From the data
 we can determine the number of vehicles sold over the last 5 decades and
-whether there has been a general trend in vehicle sales.
+whether new vehicle sales has followed a general trend.
 
 We can now look at the consumer price index of new vehicles in the
 United States.
 
 ```{r, fig.cap="Time series plot of Gasoline CPI (Top) and Unemployment Rate (Bottom)."}
+average_unemployment <- mean(unemployment$UNRATE)
+
 grid.arrange(fuel_prices_ts, unemp_ts)
 ```
 
@@ -276,21 +281,23 @@ trends are present in terms of gasoline prices and whether gasoline
 prices have an effect on the total number of vehicles sold. In other
 words, do high gasoline prices lead to less consumers buying vehicles?
 
-The data for unemployment rate goes back to January 1948 and is recorded
-on a monthly basis and is collected by the U.S. Bureau of Labor
-Statistics and there is no missingess present in this time series. From
-our data, we see general cyclical fluctiations with periods with varying
+The data for unemployment rate goes back to January 1948, is recorded
+on a monthly basis, and is collected by the U.S. Bureau of Labor
+Statistics and with no missingess present in this time series. The average unemployment over the period covered by the data has been 5.73%. From
+our data, we see general cyclical fluctuations with periods with varying
 periods of higher vs lower unemployment. There does not appear to have
-been a consistent trend of unemployment over the lifecycle of the data.
+been a consistent trend of unemployment over the life cycle of the data.
 In more recent times, we see that there has been a decrease in the
 unemployment rate since after the Great Recession following 2008 with a
-large spike in unemplopyment following the beginning stages of the
+large spike in unemployment following the beginning stages of the
 COVID-19 pandemic. We can use the unemployment data to determine whether
 there is a relationship between rates of unemployment and the number of
 total vehicles sold in the United States, and if a relationship is
 present, we can attempt to determine the strength of the relationship.
 
 ```{r, fig.cap="Time series plot of Domestic Auto Production (Top) and Domestic Auto Production Seasonal Plot (Bottom)."}
+average_production <- mean(auto_production$DAUPNSA)
+
 production_season <- auto_production %>% 
   gg_season(DAUPNSA, polar = TRUE)
 
@@ -298,7 +305,7 @@ grid.arrange(auto_production_ts, production_season)
 ```
 
 For Domestic Auto Production, we have monthly recorded data from the
-U.S. Bureau of Economic Analysis with no missingess present in the data.
+U.S. Bureau of Economic Analysis with no missingess present in the data. Over the period of time covered by the data, monthly domestic auto production has averaged about 345 thousand vehicles a month.
 Overall, we appear to see volatility month-to-month and pretty
 consistent seasonal patterns with July being a month with consistently
 low production numbers in relation to other months and March and October
@@ -306,25 +313,29 @@ having relatively high production numbers. This data alone can answer a
 couple questions about the United States auto market. First of all, we
 can answer if the COVID induced supply shortages drastically impacted
 U.S. vehicle production numbers or if, as suggested by FRED COVID simply
-highlighted a long-term trend that would have occurred regardless. Using
-this data will then also allow us to make forecasts on what the future
-outlook may be for domestic auto production.
+highlighted a long-term trend that would have occurred regardless. 
+
+
 
 ```{r, fig.cap="Bank Prime Rate Loan."}
+average_bank_rate <- mean(bank_rate$MPRIME)
+
 bank_rate_ts
 ```
 
+
+
 The Bank Prime loan rate is set in relation to the federal funds rate
-set by the federal reserve and we have data going back to January 1949.
-The rate is often set based on other determinants of the market so we
+set by the federal reserve and we have data going back to January 1949. 
+The federal funds rate is often set based on other determinants of the market so we
 may not be able to generate too many insights from it individually.
 However, if we use the bank prime rate in addition to the other factors
-we discussed earlier, we may be able to create a regression model that
+we discussed earlier, we will be able to create a regression model that
 will allow us to understand what economic factors influence the car
 purchasing decisions of Americans. Additionally, studying all the data
 together will allow us to understand if COVID-19 disruptions altered the
 purchasing decisions of Americans or if there were vehicle market trends
-that would have likely occurred regardless of the pandemic.
+that would have likely occurred regardless of the pandemic. Over the period of time covered by the data, the average bank prime rate loan has been 6.44%.
 
 \newpage
 
@@ -332,7 +343,7 @@ that would have likely occurred regardless of the pandemic.
 
 Throughout this case study, we will aim to fit time series regression
 models that allow us to understand the relationships between the total
-number of vehicles sold and different economic variables. The selected
+number of vehicles sold and different economic variables. The selected model type we will use
 will be Autoregressive Distributed Lag (ARDL) models, which use a
 combination of self lagged values, distributed lags, seasonality
 components, and trend components. Self lagged values means the model
@@ -340,7 +351,7 @@ takes into account previous values of itself to make future predictions.
 Distributed lags means that the regression model takes into account
 previous values of an independent variable to make predictions. Finally,
 seasonality and trend components are extracted from the data itself. In
-order to construct an ARDL model, we must fiest examine the data and
+order to construct an ARDL model, we must first examine the data and
 determine if the data is stationary either at I(0) or I(1). If the data
 is stationary, we can then begin to fit our models using criteria such
 as the Akaike Information Criterion (AIC) to select the best model.
@@ -351,16 +362,16 @@ should then go back and once again attempt to find an appropriate model.
 
 The first step to fitting our model is to see if any of our time series
 need to be transformed or adjusted, which often allows us to analyze
-simpler time series. Adjusting the data will allow us to make patterns
-more consistent across our data, which will allow us to better model the
-data, and will lead to better forecasts. For the metrics I used, the
-only ones that may need transformations due to variations in seasonality
+simpler time series. Adjusting the data will allow us to stabilize the variance of the time series, which will allow us to better model the
+data, and lead to better forecasts. For the variables chosen, the
+only ones that may need transformations due to variations that change with time
 are those for domestic auto production, total vehicles sold, and the
 gasoline price index. Since these time series show variations that
-change with the level of the series, in order to allow the data to
-remain interpretable, we will apply logarithmic transformations.
+change with time, we will apply logarithmic transformations in order to keep the data easily interpretable. 
 
 ```{r, message=FALSE, fig.cap="Log adjusted plot for Total New Vehicle Sales (Top), Domestic Auto Production (Middle), and Gasoline CPI (Bottom)."}
+# Log Transforming Data
+
 total_adjusted <- total_vehicles %>%
   autoplot(log(TOTALNSA))
 
@@ -379,9 +390,7 @@ analysis. Depending on the type of data we have, there are two possible
 ways that we can decompose the data. The first possible case of data is
 a time series with a trend but no seasonal variations, which follows the
 form $X_t = \alpha + \beta t + \epsilon_t$, where $\alpha, \beta$ are
-constants and $\epsilon_t$ is a random error term with mean zero. Since
-our CPI data for gasoline prices and new car prices are both seasonally
-adjusted, this is the type of decomposition they will undergo.
+constants and $\epsilon_t$ is a random error term with mean zero. 
 
 The second possible case of data is a time series that contains both a
 trend, and seasonal variation. In this case, there are two possible
@@ -393,9 +402,7 @@ which follows the form $Y_t = S_t \times T_t \times R_t$. We use the
 multiplicative case if the variation around the trend-cycle appears to
 be proportional to the level of the time series [@partiv]. The additive
 case would be if the magnitude of the seasonal fluctuations don't
-significantly vary over time. Since we used a box-cox transformation to
-stabilize our variance, we can use the additive case in our
-decomposition.
+significantly vary over time. 
 
 In our case, we will use an X-11 decomposition, which is commonly used
 by the U.S. Census Bureau. X-11 decomposition works by estimating the
@@ -408,6 +415,8 @@ iterative approach to come up with the best solution. An example of X-11
 decomposition is shown below
 
 ```{r, fig.cap="X-11 decomposition of Total New Vehicle Sales"}
+# Decomposition of Total New Vehicle Sales
+
 fit <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12) %>% seas(x11 = "")
 
 autoplot(fit)
@@ -421,6 +430,8 @@ decomposition, we can then see how the trend and seasonally adjusted
 versions of our data fit with the original data.
 
 ```{r, fig.cap="Total New Vehicles Sold with trend and seasonally adjusted graph overlayed.", include=FALSE}
+# Plot for decomposition
+
 total_auto <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12)
 
 autoplot(total_auto, series = "Data") +
@@ -437,12 +448,12 @@ each of our time series data through the use of ARDL models. The goal of
 ARDL models is to describe autocorrelations in the data for forecasting
 [@forecastbook]. When attempting to fit ARDL models, we attempt to first
 remove any trend or seasonality present within the data so that we can
-create stationary time series, which will allow us to attempt to model
+create stationary time series, which will allow us to model
 the remaining residuals. Stationary time series are time series whose
 mean and variance is constant over time [@kpssstat].
 
 One way to convert non-stationary time series into stationary time
-series is the method of differencing, where we compute the differenece
+series is the method of differencing, where we compute the difference
 between consecutive observations in a time series and can be written as
 follows $$y_t' = y_t - y_{t-1}$$ Differencing time series allows us to
 stabilize our means because it removes or reduces trend and seasonality.
@@ -462,9 +473,7 @@ $\beta_t$ is the trend, and $\epsilon_t$ is the stationary error. The
 KPSS test also involves hypothesis testing with
 $$H_0:Y_t\text{ is trend (or level) stationary}$$
 $$H_1: Y_t \text{ is a unit root process}$$ where $H_0$ and $H_1$ is the
-null and alternative hypothesis respectively. Setting our significance
-level at e can now test each time series to determine whether they will
-require differencing.
+null and alternative hypothesis respectively. We can now use the KPSS test to determine if our data will require differencing.
 
 To double check the stationarity of our data, we will also use the
 Augmented Dickey-Fuller (ADF) test. ADF tests consider the following
@@ -476,10 +485,10 @@ lag on $Y$ and $Y_{t-j}$ is the first lag, with $\Delta Y_{t-j}$ first
 difference in series at time $t-j$ ADF tests have a null and alternative
 hypothesis as follows
 $$H_0: \text{Series is non-stationary or series has a unit root}$$
-$$H_A: \text{Series is stationary or series has no unit root.}$$ If out
-test statistic results in a p-value \< 0.05, we will reject the null
+$$H_A: \text{Series is stationary or series has no unit root.}$$ If our
+test statistic results in a p-value < 0.05, we will reject the null
 hypothesis that our time series does not have a unit root, which would
-mean that it would be stationary and does not hage a time-dependent
+mean that it would be stationary and does not have a time-dependent
 structure.
 
 The value of the t-statistic for each KPSS test is as follows:
@@ -552,11 +561,11 @@ adf.tib %>%
 
 From the two tables, we see that we have slightly conflicting
 information as to which time series are stationary. From the KPSS tests,
-we see that totalall our variables have p-values less than 0.05, meaning
+we see that all our variables have p-values less than 0.05, meaning
 that we will have to difference the data to attempt to make our data
 stationary. From our ADF test, we see that with the exception of our
 domestic auto production and unemployment time series, all our other
-time series are non-staionary. To be safe, data identified as
+time series are non-stationary. To be safe, data identified as
 non-stationary by either tests will be differenced and then we will once
 again conduct the KPSS and ADF tests on them to check for stationarity.
 
@@ -570,8 +579,7 @@ plot(ts(difference(log(auto_production$DAUPNSA)), start = c(1993,01), frequency 
 
 From the above plot, we see that with the exception of the spikes
 brought about from COVID-19 production disruptions there does not appear
-to be any defined pattern that this data follows, so we see that adding
-one difference allows the time series to become stationary.
+to be any defined pattern that this data follows, so we see that differencing the data once allows the time series to become stationary.
 
 ```{r, include=FALSE}
 # KPSS Tests for Differenced Time Series
@@ -597,6 +605,8 @@ diff(gas_cpi) %>% urca::ur.kpss() %>% summary()
 ```
 
 ```{r}
+# Creating tape for kpss values
+
 class <- c("Total Vehicles", "Domestic Production", "Bank Prime Rate", "Uemployment", "Gasoline CPI")
 test_stat1 <- c(0.0297, 0.0181, 0.0715, 0.0527, 0.0614)
 significant_p <- c(0.10, 0.10, 0.10, 0.10, 0.10)
@@ -622,6 +632,8 @@ tseries::adf.test(diff(gas_cpi))
 ```
 
 ```{r}
+# Creating table for ADF values
+
 class <- c("Total Vehicles", "Domestic Production", "Bank Prime Rate", "Uemployment", "Gasoline CPI")
 test_stat1 <- c(-13.599, -10.316, -9.1312, -9.683, -8.9804)
 significant_p <- c(0.01, 0.01, 0.01, 0.01, 0.01)
@@ -648,7 +660,7 @@ portion of the model.
 We will first discuss autoregressive models. In autoregression, our goal
 is to forecast the variable of interest using linear combinations of
 previous values of the variable. This means that in an autoregression,
-the variable is regressed on itself. An model that utilizes
+the variable is regressed on itself. A model that utilizes
 autoregression of order p can be denoted by
 $$y_t = c + \phi_1y_{t-1} + \phi_2y_{t-2} + \cdots + \phi_py_{t-p} + \epsilon_t$$,
 where $\epsilon_t$ denotes white noise. In such a case, we would say
@@ -664,9 +676,9 @@ While autoregression models use past values of itself, distributed lag
 models use the current and past values of a variable of interest using
 linear combinations of the previous values of the variable. This means
 that the variable of interest is regressed on current and previous
-values of the independent variable. A distributed lag model of order r
+values of the independent exogenous variable. A distributed lag model of order r
 DL(r) can be written as
-$$Y_t = \alpha + \sum_{i=1}^rX_{t-i}+\epsilon)t$$
+$$Y_t = \alpha + \sum_{i=1}^rX_{t-i}+\epsilon_t$$
 
 The full ARDL(P,r) model can be expressed as follows:
 $$Y_t = \alpha +  \phi_1y_{t-1} + \cdots + \phi_py_{t-p} + \beta_0X_t + \cdots + \beta_rX_{t-r} + \epsilon_t$$
@@ -674,22 +686,23 @@ Now that we have our data properly differenced, we now need to come up
 with our regression models. Our goal will be to regress each independent
 varaiable individually on the total number of cars sold to try to
 understand what relationship, if any is present between our economic
-factors and the resulting number of vehicles sold.
+variables and the resulting number of vehicles sold.
 
 The first thing we want to consider with our model is that the number of
 total vehicles sold as shown in our data analysis demonstrated
-seasonality so in order to account for that in our model, we will want
-to use dummy coding. After taking seasonality into account, we can use
-an ANVOA test to determine if the dummy variables results in a
-significantly different model.
+seasonality so in order to account for that in our model, we will add a seasonal term. After taking seasonality into account, we can use
+an ANVOA test to determine if the seasonal variable results in a
+significantly different model that improves the models predictive capabilities.
 
 ```{r}
+# Evaluating base AR model and model with seasonal term included
+
 total_log <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12)
 
 diff_total_log <- diff(total_log)
-model_base <- dynlm(diff_total_log ~ 1)
+model_base <- dynlm::dynlm(diff_total_log ~ 1)
 model_with_season <- dynlm(diff_total_log ~ season(diff_total_log), data = total_log)
-ar_model <- dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(diff_total_log), data = diff_total_log)
+ar_model <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(diff_total_log), data = diff_total_log)
 anova(model_base, model_with_season) %>% gt::gt(rowname_col = "Model with Seasonality") %>% gt::tab_header(title = "Analyis of Variance Table") 
                                                                        
 ```
@@ -698,7 +711,8 @@ The small p-value indicates that the seasonal terms play a significant
 role in the model so we should make sure to take that into account for
 our models going forwards
 
-### Total Vehicles Sold and Domestic Auto Production:
+
+## Model Selection and Evaluation Criteria
 
 We can now consider the time series model when regressed against each
 other. The first model we will look at is the ARDL model including total
@@ -707,8 +721,8 @@ we must first attempt to calculate the number of lags which are
 significant for each variable. To do this, I will elect to use Akaike's
 Information Criterion (AIC) and Bayesian Information Criterion (BIC) and
 the `auto_ardl` function which uses AIC and BIC for both variables
-simultaneously to search for the best possible model. Information
-criterion are of the form
+simultaneously to search for the best possible model. The information
+criteria are of the form
 $nlog(\frac{RSS}{n}) + kp, p = \# \text{ of parameters}$ With:
 
 -   AIC, k = 2 $$nlog(\frac{RSS}{n}) + 2p$$
@@ -721,13 +735,13 @@ through BIC to prevent over fitting.
 
 After Selecting the model that will best fit our data, we can then
 perform residual analysis to ensure that our data results in the
-remaining residuals having no autocorrelation present. This can be done
-both with an inspection of residual plots and with the implmentation of
+remaining residuals having no significant autocorrelation present. This can be done
+both with an inspection of residual plots and with the implementation of
 a Breusch-Godfrey test. Ideally, we want to see that there are no
 patterns present in the residuals vs fitted plot, indicating that our
-reisudals are evenly distributed that the scale-location plot has a flat
+residuals are evenly distributed. We would also want to make sure that the scale-location plot has a flat
 line, indicating constant variance, and that the points on the QQ-plot
-lie close to the line. The Residuals vs. Leverage plot help us identify
+lie close to the line. The Residuals vs. Leverage plot would help us identify
 influential points on the model.
 
 The Breusch-Godfrey test is a statistical test that allow us to
@@ -747,10 +761,14 @@ null and alternative hypothesis of the Granger Causality Test is as
 follows
 $$H_0 = \text{ Time series X does not cause time series Y to Granger-cause itself.}$$
 $$H_A = \text{ Time series X causes time series Y to Granger-cause itself.}$$
-It is important to note that for a time series can Granger-cause another
-variable if it is helpful for forecasting the other variable [@granger].
+It is important to note that for a variable to Granger-cause another variable means that it is helpful in forecasting the other variable [@granger].
+
+
+### Total Vehicles Sold and Domestic Auto Production:
 
 ```{r, include = FALSE}
+# Selecting best ARDL for domestic auto production as exogenous variable
+
 total_log <- ts(log(total_vehicles$TOTALNSA), start = c(1976,01), frequency = 12)
 diff_total_log <- diff(total_log)
 
@@ -767,26 +785,32 @@ VARselect(auto_prod, lag.max = 24)
 ```
 
 ```{r, fig.cap="Analysis of ARDL (12,10) on Total New Vehicles Sold with Domestic Auto Production as Exogenuous Variable."}
+# Best model evaluation
+
 prod_total_modelvarbic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:6) + season(diff_total_log), data = total_prod_analysis)
 
 prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
 
 
 # checkresiduals(prod_total_modelvarbic) 
-forecast::checkresiduals(prod_total_model_auto)
+
 
 # par(mfrow = c(2,2))
 # plot(prod_total_modelvarbic)
-
+```
+```{r}
+forecast::checkresiduals(prod_total_model_auto)
 
 par(mfrow = c(2,2))
 plot(prod_total_model_auto)
 ```
 
-From the outputs, above showing our residual analysis, we can see that
+
+
+From the outputs above showing our residual analysis, we can see that
 the residual values we obtain are consistent with being white noise and
 that all our values appear normally distributed. Additionally, the
-p-value we got from the Breusch-Godfrey test was 0.0879 \> 0.05,
+p-value we got from the Breusch-Godfrey test was 0.0879 > 0.05,
 therefore we can conclude that it is likely that our residuals are not
 serially correlated. We can then conclude that our current model is
 appropriate with modeling the true data. We can now test to see if
@@ -794,6 +818,8 @@ adding the lags for domestic auto production were helpful in predicting
 the number of vehicles sold.
 
 ```{r, include = FALSE}
+# Granger-causality test for domestic auto production ARDL model
+
 prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
 prod_total_noprod <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(diff_total_log), data = total_prod_analysis)
 
@@ -811,12 +837,16 @@ followed with the output being listed in a table.
 ### Total Vehicles Sold and Unemployment Rate:
 
 ```{r}
+# Creating data table for unemployment rate and total new vehicles sold
+
 unemp <- ts(unemployment$UNRATE, start = c(1948, 1), frequency = 12)
 unemp <- diff(unemp)
 total_unemp_analysis <- ts.intersect(diff_total_log, unemp)
 ```
 
 ```{r, include = FALSE}
+# Best ARDL model selection for unemployment rate as exogenous variable
+
 ARDL::auto_ardl(diff_total_log ~ unemp, data = total_unemp_analysis, max_order = 24, selection = "BIC")
 ARDL::auto_ardl(diff_total_log ~ unemp, data = total_unemp_analysis, max_order = 24)
 vars::VARselect(unemp, lag.max = 24)
@@ -832,18 +862,24 @@ checkresiduals(unemp_total_modelvarbic)
 ```
 
 ```{r, include = FALSE}
+# ARDL model evaluation
+
 unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
 
 checkresiduals(unemp_total_modelvar_bic)
 ```
 
 ```{r, include = FALSE}
+# Granger-causality test for unemployment ARDL model
+
 unemp_total_nounemp <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_unemp_analysis)
 
 anova(unemp_total_modelvar_bic, unemp_total_nounemp) 
 ```
 
 ```{r}
+# Table to show different unemployment ARDL model evaluations
+
 model_emp <- c("ARDL(12,1)", "ARDL(12, 14)", "ARDL(15,14)")
 selection_crit_emp <- c("Individually Selected BIC", "Auto_ARDL BIC", "Auto_ARDL AIC")
 significant_p_emp <- c(0.2617, 0.04512, 0.00733)
@@ -871,6 +907,8 @@ conclude that it is likely that Unemployment Granger-causes total auto
 sales.
 
 ```{r, include = FALSE}
+# Granger-causality test for unemployment ARDL model
+
 unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
 unemp_total_nounemp <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_unemp_analysis)
 
@@ -881,6 +919,8 @@ anova(unemp_total_modelvar_bic, unemp_total_nounemp)
 ### Total Vehicles Sold and Gas CPI:
 
 ```{r}
+# Putting data together for Gas CPI and total vehicle analysis
+
 gas_cpi <- ts(log(fuel_prices$CUSR0000SETB01), start = c(1968, 2), frequency = 12) 
 
 gas_cpi <- diff(gas_cpi)
@@ -889,6 +929,8 @@ total_gas_analysis <- ts.intersect(diff_total_log, gas_cpi)
 ```
 
 ```{r, include = FALSE}
+# ARDL best model selection for Gasoline CPI as exogenous variable
+
 ARDL::auto_ardl(diff_total_log ~ gas_cpi, data = total_gas_analysis, max_order = 24, selection = "BIC")
 ARDL::auto_ardl(diff_total_log ~ gas_cpi, data = total_gas_analysis, max_order = 24)
 vars::VARselect(gas_cpi, lag.max = 24)
@@ -904,12 +946,16 @@ checkresiduals(gas_total_model_autoaic)
 ```
 
 ```{r, include = FALSE}
+# Granger-causality test
+
 gas_total_nogas <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_gas_analysis)
 
 anova(gas_total_model_autobic, gas_total_nogas) 
 ```
 
 ```{r}
+# Table to show different models attempted for unemployment as exogenous variable
+
 model_gas <- c("ARDL(12,2)", "ARDL(12, 12)", "ARDL(15,12)")
 selection_crit_gas <- c("Individually Selected BIC", "Auto_ARDL BIC", "Auto_ARDL AIC")
 significant_p_gas <- c(0.0331, 0.1262, 0.03477)
@@ -939,6 +985,8 @@ auto sales.
 ### Total Vehicles Sold and Bank Prime Rate Loan:
 
 ```{r}
+# Putting data together for bank prime rate loan and total new vehicles sold
+
 rate <- ts(bank_rate$MPRIME, start = c(1949, 1), frequency = 12)
 
 rate <- diff(rate)
@@ -947,6 +995,8 @@ total_rate_analysis <- ts.intersect(diff_total_log, rate)
 ```
 
 ```{r, include = FALSE}
+# Model evaluation for bank prime rate loan as exogenous variable
+
 ARDL::auto_ardl(diff_total_log ~ rate, data = total_rate_analysis, max_order = 24, selection = "BIC")
 ARDL::auto_ardl(diff_total_log ~ rate, data = total_rate_analysis, max_order = 24)
 vars::VARselect(rate, lag.max = 24)
@@ -962,12 +1012,16 @@ checkresiduals(rate_total_modelvarbic)
 ```
 
 ```{r, include = FALSE}
+# Granger-causality test
+
 rate_total_norate <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + season(total_log), data = total_rate_analysis)
 
 anova(rate_total_model_autobic, rate_total_norate) 
 ```
 
 ```{r}
+# Table showing different models attempted for bank prime rate loan as exogenous variable
+
 model_rate <- c("ARDL(12,13)", "ARDL(12, 0)", "ARDL(14,13)")
 selection_crit_rate <- c("Individually Selected BIC", "Auto_ARDL BIC", "Auto_ARDL AIC")
 significant_p_rate <- c(0.01152, 0.05509, 0.0008)
@@ -990,7 +1044,7 @@ From the 3 models that we tried, the best one was the model that was
 selected by `auto_ardl` using BIC as the selection criterion. The best
 model is ARDL(12,0) model, meaning we used 12 lags of total auto sales
 and the current value of the gasoline CPI. For the Granger Causality
-test we obtained a p-value that $0.4755 > 0.05$ so we cannot reject the
+test we obtained a p-value of $0.4755 > 0.05$ so we cannot reject the
 null hypothesis, which means that it is unlikely that bank prime rate
 loans Granger-cause total auto sales.
 
@@ -999,8 +1053,8 @@ loans Granger-cause total auto sales.
 ## Forecast Analysis
 
 Now that we have appropriate models, we can analyze the forecasts
-provided by the models. In order to do this, we will utilize thge method
-of pseudo out-of-sample forecasting which follows the following steps
+provided by the models. In order to do this, we will utilize the method
+of pseudo out-of-sample forecasting (POOSF) which follows the following steps
 [@econometricsbook]: 1.) Divide the sample data into $s = T - P$ and $P$
 subsequent observations where the $P$ observations are used as
 pseudo-out-of-sample observations
@@ -1021,9 +1075,9 @@ rate, gasoline CPI, and domestic auto production.
 As a measure of the accuracy of our forecasts, we will use the root mean square error (RMSE) of our forecasts compared to the actual data. The root mean square error allows us to calculate the spread of the residuals and in essence allows us to "measure the average difference between values predicted by a model and the actual values" [@rmse]. The formula for RMSE is as follows:
 $$RMSE = \sqrt{\frac{\sum_{i=1}^n (y_i - \hat{y}_i)^2}{n}}$$
 
-### Unemployment Forecast
+## Unemployment Forecast
 
-```{r, fig.cap= "Total New Vehicle Sales, Unemployment ARDL pseudo-out-of-sample residual forecast analysis"}
+```{r}
 EndOfSample <- seq(2021, 2023, 1/12)
 
 # initialize matrix forecasts
@@ -1069,7 +1123,7 @@ plot(window(diff_total_log, c(2021, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts Percent Change") +
+     main = "POOSF Percent Change with Unemployment") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc, 
@@ -1092,9 +1146,11 @@ legend("bottomleft",
          "Pseudo forecast Error"))
 ```
 
-### Gas Forecast
+\newpage
+## Gas Forecast
 
-```{r, fig.cap= "Total New Vehicle Sales, Gasoline CPI ARDL pseudo-out-of-sample residual forecast analysis"}
+
+```{r}
 EndOfSample_gas <- seq(2021, 2023, 1/12)
 
 # initialize matrix forecasts
@@ -1140,7 +1196,7 @@ plot(window(diff_total_log, c(2021, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts Percent Change") +
+     main = "POOSF Percent Change with Gas CPI") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc_gas, 
@@ -1158,14 +1214,17 @@ legend("bottomleft",
        lty = c(1, 2, 1),
        lwd = c(2, 2, 10),
        col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
-       legend = c("Actual GDP growth rate",
-         "Forecasted GDP growth rate",
+       legend = c("Actual Total New Vehicles Sold",
+         "Forecasted Total New Vehicles Sold",
          "Pseudo forecast Error"))
 ```
 
-### Domestic Auto Production Forecast
 
-```{r, fig.cap= "Total New Vehicle Sales, Unemployment ARDL pseudo-out-of-sample residual forecast analysis"}
+
+## Domestic Auto Production Forecast
+
+
+```{r}
 EndOfSample_prod <- seq(2021, 2023, 1/12)
 
 # initialize matrix forecasts
@@ -1210,7 +1269,7 @@ plot(window(diff_total_log, c(2021, 1), c(2023, 1)),
      col = "steelblue",
      lwd = 2,
      ylab = "Percent",
-     main = "Pseudo-Out-Of-Sample Forecasts Percent Change") +
+     main = "POOSF Percent Change with Domestic Auto Production") +
 
 # add the series of pseudo-out-of-sample forecasts
 lines(PSOSSFc_prod, 
@@ -1228,10 +1287,13 @@ legend("bottomleft",
        lty = c(1, 2, 1),
        lwd = c(2, 2, 10),
        col = c("steelblue", "black", alpha("blue", alpha = 0.3)), 
-       legend = c("Actual GDP growth rate",
-         "Forecasted GDP growth rate",
+       legend = c("Actual Total New Vehicles Sold",
+         "Forecasted Total New Vehicles Sold",
          "Pseudo forecast Error"))
 ```
+
+
+
 ```{r}
 unemployment_rmse <- Metrics::rmse(window(diff_total_log, c(2021, 1), c(2023, 1)), PSOSSFc)
 gasoline_rmse <- Metrics::rmse(window(diff_total_log, c(2021, 1), c(2023, 1)), PSOSSFc_gas)
@@ -1249,94 +1311,46 @@ rmse.tib %>%
              model_rmse= "RMSE")
 ```
 
-### Future Forecasts
-
-```{r, eval = FALSE}
-prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), start = c(1993,1), end = EndOfSample_prod[i], data = total_prod_analysis)
-
-# Auto Production Future Forecast
-fit_basic1 <- auto.arima(diff(log(auto_production$DAUPNSA)))
-checkresiduals(fit_basic1)
-forecast_1 <- forecast(fit_basic1, h = 12) 
-prod_forecast <- c(0.067356811, 0.021137651, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529)
 
 
-prod_forecast_ts <- ts(prod_forecast, start = c(2023, 1), frequency = 12)
-prod_combined_ts <- ts(c(auto_prod, prod_forecast), start = c(1993, 1), frequency = 12)
 
 
-auto_prod <- ts(log(auto_production$DAUPNSA), start = c(1993, 1), frequency = 12)
-auto_prod <- diff(auto_prod)
-
-for(i in 1:length(EndOfSample_gas)) {
-  h[i] = coef(prod_total_model_auto) %*% forecasts_prod[i] <- coef(prod_total_model_auto)[1:24] %*% c(1, s[12, 1], s[11, 1], s[10,1], s[9,1], s[8,1], s[7,1], s[6,1], s[5,1], s[4,1], s[3,1], s[2,1], s[1, 1], s[13,2], s[12,2], s[11,2], s[10,2], s[9,2], s[8,2], s[7,2], s[6,2], s[5,2], s[4, 2], s[3,2])
-}
-
-h1 <- coef()
-```
 
 
-```{r, eval = FALSE}
 
-# Gasoline CPI Future Forecast
-fit_basic3 <- auto.arima(diff(log(fuel_prices$CUSR0000SETB01)))
-checkresiduals(fit_basic3)
-forecast_3 <- forecast(fit_basic3, h = 12)
-gas_forecast <- c(-0.035613966, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241)
-
-gas_cpi <- ts(log(fuel_prices$CUSR0000SETB01), start = c(1968, 2), frequency = 12) 
-gas_cpi <- diff(gas_cpi)
-
-gas_combined_ts <- ts(c(gas_cpi, gas_forecast), start = c(1968, 2), frequency = 12)
-```
-
-
-```{r, eval = FALSE}
-# Unemployment Future Forecast
-fit_basic2 <- auto.arima(diff(unemployment$UNRATE))
-checkresiduals(fit_basic2)
-forecast_2 <- forecast(fit_basic2, h = 12)
-
-unemp <- ts(unemployment$UNRATE, start = c(1948, 1), frequency = 12)
-unemp <- diff(unemp)
-
-unemp_forecast <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
-unemp_combined_ts <- ts(c(unemp, unemp_forecast), start = c(1948, 1), frequency = 12)
-```
 
 
 ## Discussion
 
-This case study focused on attempting to model total new vehicle sales through the use of Autoregressive Distributed Lag (ARDL) models. We attempted to fit models that included the unemployment rate, the gasoline CPI, domestic auto production, and the bank prime rate loans. 
+This case study focused on attempting to model total new vehicle sales through the use of Autoregressive Distributed Lag (ARDL) models. We attempted to fit models that included the unemployment rate, the gasoline CPI, domestic auto production, and bank prime rate loans. 
 
-After fitting our models, we found the different models that would fit best for our different ARDL models. We then attempted to find which ARDL models were most important in determining the total number of new vehicles that were sold. From the variables that we used, we then calculated if the exogenous variables that we added as part of the ARDL model allowed us to better estimate the true number of vehicles sold through the use of Granger-causality tests. 
+After fitting our models, we found different models that would fit best for our different ARDL models. We then attempted to find which ARDL models were most important in determining the total number of new vehicles that were sold. From the variables that we used, we then calculated if the exogenous variables that we added as part of the ARDL model allowed us to better estimate the true number of vehicles sold through the use of Granger-causality tests. 
 
-It was determined that the bank prime rate loans had no statistical significance in allowing us to better predict the total number of vehicles sold. This could potentially make sense because if we look at how bank prime rate loans have changed over time, we see that they reached a peak in the 80s before slowly decreasing over time; however, if we look at time series of total new vehicles we see that there have been cyclical components but that in general the number of new vehicles sold has remained at a relatively stable level when compared to some of the other time series.
+It was determined that the bank prime rate loans had no statistical significance in allowing us to better predict the total number of vehicles sold. This could potentially make sense because if we look at how bank prime rate loans have changed over time, we see that they reached a peak in the 80s before generally decreasing over time; however, if we look at time series of total new vehicles we see that there have been cyclical components but that in general the number of new vehicles sold has remained at a relatively stable level when compared to some of the other time series.
 
-It was therefore determined that the ARDL models where the exogenous variables did make a difference in allowing us to predict total number of new vehicles sold were the unemployment rate, gasoline CPI and domestic auto production. The actual regression model used for the models that were significant is located in the appendix. For unemployment we see that there is a negative relationship, meaning that as unemployment increases, we would expect to predict that the total number of new vehicles sold decreases, which would make sense since when unemployment increases, the population as a whole would likely have less purchasing power, leading to fewer cars being bought. 
+It was therefore determined that the ARDL models where the exogenous variables did make a difference in allowing us to predict total number of new vehicles sold were the unemployment rate, gasoline CPI and domestic auto production. The full ARDL models can be found in the appendix. For unemployment we see that there is a negative relationship, meaning that as unemployment increases, we would expect the total number of new vehicles sold to decrease, which would make sense since when unemployment increases, the population as a whole would likely have less purchasing power, leading to fewer cars being bought. This would also then mean that if unemployment were to decrease, we would expect that Americans would be more likely to buy new vehicles. 
+ 
+Interestingly, out of the 12 lags used for gasoline CPI, we have 6 lags with positive values, which would seem to indicate that about half the time, an increase in gas price leads to an increase in new vehicles sold. This is not straightforward but may make sense if we consider that in the last few years, even as gas prices have gone up, the purchasing of new car has remained high, which may indicate that cars may be an inelastic good, meaning that despite the ricing prices of gasoline, a complement, people still have a need for purchasing vehicles. In addition, we have recently seen an increase in the sale of hybrid and electric vehicles with 5.5% of light vehicle sales being hybrid and 3.2% of light vehicle sales being electric  in 2021 [@transportation]. Furthermore, gas mileage has improved now even for trucks and SUVs which could make the American consumer less likely to respond to change in gas prices. For further conclusions, this is an area of research that may be interesting to look at. 
 
-Interestingly, for gasoline CPI we have 6 lags with positive values, which would seem to indicate that about half the time, an increase in gas price leads to an increase in new vehicles sold. This is not straightforward but may make sense if we consider that in the last few years, even as gas prices have gone up, the purchasing of new car has remained high, which may indicate that cars may be an inelastic good, meaning that despite the ricing prices of gasoline, a complement, people still have a need for purchasing vehicles. In addition, we have recently seen an increase in the sale of hybrid and electric vehicles with 5.5% of light vehicle sales being hybrid and 3.2% of light vehicle sales being electric  in 2021 [@transportation]. Furthermore, gas mileage has improved now even for trucks and SUVs which could make the American consumer less likely to respond to change in gas prices. For further conclusions, this is an area of research that may be interesting to look at. 
+For domestic auto production the data is as expected, with all values being positive, which would indicate that as more cars are produced domestically, more total new cars would be sold. This relationship could go both ways in that more cars being produced could lead to more total new vehicles being sold and that consumers buying more cars may encourage auto makers to produce more cars. Our findings regarding the relationship between domestic auto production and total new cars sold also by extension indicates that as domestic auto production decreases, total new vehicles sold would likely decrease as well.
 
-For domestic auto production the data is as expected, with all values being positive, which would indicate that as more cars are produced domestically, more total new cars would be sold. This relationship could go both ways in that more cars being produced could lead to more total new vehicles being sold and that consumers buying more cars may encourage auto makers to produce more cars.
-
-After analyzing the data, the ARDL models which appeared to have effects on the total new vehicles sold were analyzed through pseudo-out-of-sample forecasts where we found that it appeared that the model that appeared to have the best forecasting performance was the model that used unemployment as its exogenous variable. This intuitively makes sense since it appears logical that as more people became unemployed, there would also be less people purchasing new cars. It is worth mentioning, however, that our other models also appeared to have relatively good forecasting ability.
+After analyzing the data, the ARDL models which appeared to have effects on the total new vehicles sold were analyzed through pseudo-out-of-sample forecasts where we found that it appeared that the model that appeared to have the best forecasting performance was the model that used unemployment as its exogenous variable. This intuitively makes sense since it appears logical that as more people became unemployed, there would also be less people able to purchase new cars. It is worth mentioning, however, that our other models also appeared to have relatively good forecasting ability.
 
 
 ## Conclusion
 
 The automobile is in many ways synonymous with the American lifestyle and this case study aimed to better understand some of the economic forces behind it. We looked at the the unemployment rate, gasoline CPI, domestic auto production, and bank prime rate loans as economic factors that could potentially affect the number of total new vehicles sold. We ultimately found that bank prime rate loans were largely uncorrelated with the number of new vehicles sold but that our other factors demonstrated correlation with total new vehicles sold.
 
-In the process of finding these correlations, we were able to make use if ARDL models to model the relationship between the our exogenous variables and total new vehicles sold, and these relationships can be seen in the appendix. We then utilized pseudo-out-of-sample forecasts to evaluate our models as a way to confirm their efficacy and was able to find that unemployment appeared to be the best of our selected exogenous variables when used in an ARDL model. 
+In the process of finding these correlations, we were able to make use of ARDL models to model the relationship between our exogenous variables and total new vehicles sold, and these relationships can be seen in the appendix. We then utilized pseudo-out-of-sample forecasts to evaluate our models as a way to confirm their efficacy and was able to find that unemployment appeared to be the best of our selected exogenous variables when used in an ARDL model. 
 
 Going forwards, this case study provides us with many avenues through which we could continue to better understand the American automobile market. One of the most apparent ways we could further our analysis would be by looking at other economic variables that may affect total number of new vehicles sold such as the amount of disposable income available throughout the country, the general CPI, or by looking at the price of new cars. As mentioned earlier in the discussion, having the same amount of lags of gasoline CPI indicating a positive and negative relationship between gasoline CPI and new vehicles sold may indicate the inelasticity of total vehicle purchases and analyzing the price of vehicles in conjunction with total vehicles sold would allow us to truly test this hypothesis.
 
-Furthermore, since vehicles are often the second most expensive item a family may purchase, we could try to analyze the relationship between vehicles sold and house purchases and see if increases in vehicle sales may preempt a strong housing market.
+Furthermore, as a more holistic study of the economy, since vehicles are often the second most expensive item a family may purchase, we could try to analyze the relationship between vehicles sold and house purchases and see if vehicle sales may have any relation to the housing market.
 
-Ultimately, this case study allowed us to better understand the forces driving Americans to purchase vehicles and its relation to other economic forces.
+Ultimately, this case study allowed us to better understand the factors driving Americans to purchase vehicles and its relation to other economic forces.
 
 
-## Apendix
+## Appendix
 ```{r}
 prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), data = total_prod_analysis)
 unemp_total_modelvar_bic <-  dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(unemp, 0:1) + season(diff_total_log), data = total_unemp_analysis)
@@ -1344,7 +1358,7 @@ gas_total_model_autobic <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12)
 ```
 
 
-### Unemployment ARDL Summary
+## Unemployment ARDL Summary
 ```{r}
 summary(unemp_total_modelvar_bic)
 ```
@@ -1361,9 +1375,11 @@ summary(gas_total_model_autobic)
 summary(prod_total_model_auto)
 ```
 
-
-
-
+### Bank Prime Rate Loan ARDL Summary
+```{r}
+summary(rate_total_model_autobic)
 ```
+
+
 
 ## References

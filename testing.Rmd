@@ -687,7 +687,43 @@ plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference 
 
   
 ```
+```{r}
+ardl_test <- ardl(diff_total_log ~ unemp, data = total_unemp_analysis, order = c(12, 1))
 
+checkresiduals(ardl_test)
+
+unemp_act_fit <- plot(diffinv(total_unemp_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
+  lines(diffinv(-fitted(unemp_total_modelvar_bic), difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
+
+
+unemp_act_fit <- plot(diffinv(total_unemp_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
+  lines(diffinv(-fitted(ardl_test), difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
+```
+
+
+```{r}
+prod_total_model_auto2 <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 1:10) + season(diff_total_log), data = total_prod_analysis)
+ardl_test2 <- ardl(diff_total_log ~ auto_prod, data = total_prod_analysis, order = c(12, 10))
+
+prod_act_fit <- plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
+  lines(stats::diffinv(fitted(prod_total_model_auto, newdata = s), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
+
+prod_act_fit <- plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
+  lines(stats::diffinv(-fitted(ardl_test2), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
+```
+
+
+```{r}
+par(mfrow = c(2,2)) 
+plot(diffinv(total_rate_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
+  lines(diffinv(-fitted(rate_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Bank Prime Rate and Total Vehicles Sold")
+plot(diffinv(total_unemp_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
+  lines(diffinv(-fitted(unemp_total_modelvar_bic), difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Unemployment and Total Vehicles Sold")
+plot(diffinv(total_gas_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.785814)) +
+  lines(diffinv(-fitted(gas_total_model_autobic), lag = 1, difference = 1, xi = 6.877193), col = 2) + title("Actual vs Fitted for Gas and Total Vehicles Sold")
+plot(stats::diffinv(total_prod_analysis[,"diff_total_log"], lag = 1, difference = 1, xi = 6.819252)) +
+  lines(stats::diffinv(-fitted(prod_total_model_auto), lag = 1, difference = 1, xi = 6.952251), col = 2) + title("Actual vs Fitted for Domestic Auto Production and Total Vehicles Sold")
+```
 
 ### Total Vehicles Sold and Unemployment Rate:
 
@@ -1195,9 +1231,18 @@ legend("bottomleft",
 
 
 ```{r}
-fit_basic1 <- auto.arima(window(log(auto_production$DAUPNSA)))
+estim_prod <- auto_production %>% filter(DATE < "2020-01-01")
+
+fit_estim_prod <- auto.arima(log(estim_prod$DAUPNSA))
+checkresiduals(fit_estim_prod)
+forecast_estim <- forecast(fit_estim_prod, h = 20)
+
+fit_basic1 <- auto.arima(log(auto_production$DAUPNSA))
 checkresiduals(fit_basic1)
 forecast_1 <- forecast(fit_basic1, h = 12)
+
+
+plot(ts(log(auto_production$DAUPNSA))) + ts(forecast_estim)
 ```
 
 ```{r}
@@ -1232,6 +1277,96 @@ fit_forecast_1 <- forecast(fit_forecast11, n = 12)
 
 ```{r}
 # Fuel Prices Last Year
+```
+
+
+### Future Forecasts
+
+```{r, eval = FALSE}
+prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), start = c(1993,1), end = EndOfSample_prod[i], data = total_prod_analysis)
+
+# Auto Production Future Forecast
+fit_basic1 <- auto.arima(diff(log(auto_production$DAUPNSA)))
+checkresiduals(fit_basic1)
+forecast_1 <- forecast(fit_basic1, h = 12) 
+prod_forecast <- c(0.067356811, 0.021137651, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529, -0.003728529)
+
+
+prod_forecast_ts <- ts(prod_forecast, start = c(2023, 1), frequency = 12)
+prod_combined_ts <- ts(c(auto_prod, prod_forecast), start = c(1993, 1), frequency = 12)
+
+
+auto_prod <- ts(log(auto_production$DAUPNSA), start = c(1993, 1), frequency = 12)
+auto_prod <- diff(auto_prod)
+
+for(i in 1:length(EndOfSample_gas)) {
+  h[i] = coef(prod_total_model_auto) %*% forecasts_prod[i] <- coef(prod_total_model_auto)[1:24] %*% c(1, s[12, 1], s[11, 1], s[10,1], s[9,1], s[8,1], s[7,1], s[6,1], s[5,1], s[4,1], s[3,1], s[2,1], s[1, 1], s[13,2], s[12,2], s[11,2], s[10,2], s[9,2], s[8,2], s[7,2], s[6,2], s[5,2], s[4, 2], s[3,2])
+}
+
+
+
+
+EndOfSample_prod <- seq(2023, 2024, 1/12)
+
+# initialize matrix forecasts
+forecasts_prod <- matrix(nrow = 1, 
+                    ncol = length(EndOfSample_prod))
+
+# initialize vector SER
+SER_prod  <- numeric(length(EndOfSample_prod))
+
+# estimation loop over end of sample dates
+for(i in 1:length(EndOfSample_prod)) {
+
+# estimate Gas Model
+  prod_total_model_auto <- dynlm::dynlm(diff_total_log ~ L(diff_total_log, 1:12) + L(auto_prod, 0:10) + season(diff_total_log), start = c(1993,1), data = total_prod_analysis)
+  
+  SER_prod[i] <- summary(prod_total_model_auto)$sigma
+
+  # sample data for one-period ahead forecast
+  s <- window(total_prod_analysis, EndOfSample_prod[i] - 13/12, EndOfSample_prod[i])
+
+  # compute forecast
+  forecasts_prod[i] <- coef(prod_total_model_auto)[1:24] %*% c(1, s[12, 1], s[11, 1], s[10,1], s[9,1], s[8,1], s[7,1], s[6,1], s[5,1], s[4,1], s[3,1], s[2,1], s[1, 1], s[13,2], s[12,2], s[11,2], s[10,2], s[9,2], s[8,2], s[7,2], s[6,2], s[5,2], s[4, 2], s[3,2])
+  
+  total_prod_analysis <- ts(c(total_prod_analysis[, "diff_total_log"], forecasts_prod))
+}
+
+prod_season <- c(0, 0.12583, 0.22793, 0.16840, 0.19412, 0.15245, 0.13505, 0.13846, 0.05225, 0.13960, 0.01954, 0.20756)
+
+season_add_prod <- rep(prod_season, times = 3)[1:25]
+
+forecasts_prod <- forecasts_prod + season_add_prod
+```
+
+
+```{r, eval = FALSE}
+
+# Gasoline CPI Future Forecast
+fit_basic3 <- auto.arima(diff(log(fuel_prices$CUSR0000SETB01)))
+checkresiduals(fit_basic3)
+forecast_3 <- forecast(fit_basic3, h = 12)
+gas_forecast <- c(-0.035613966, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241, 0.003625241)
+
+gas_cpi <- ts(log(fuel_prices$CUSR0000SETB01), start = c(1968, 2), frequency = 12) 
+gas_cpi <- diff(gas_cpi)
+
+gas_combined_ts <- ts(c(gas_cpi, gas_forecast), start = c(1968, 2), frequency = 12)
+```
+
+
+```{r, eval = FALSE}
+# Unemployment Future Forecast
+fit_basic2 <- auto.arima(diff(unemployment$UNRATE))
+checkresiduals(fit_basic2)
+forecast_2 <- forecast(fit_basic2, h = 12)
+
+unemp <- ts(unemployment$UNRATE, start = c(1948, 1), frequency = 12)
+unemp <- diff(unemp)
+
+unemp_forecast <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+unemp_combined_ts <- ts(c(unemp, unemp_forecast), start = c(1948, 1), frequency = 12)
 ```
 
 
